@@ -45,3 +45,4 @@ next-env.d.ts
 rename.js
 test-suite-analysis.txt
 tmp
+/_assets_backup/

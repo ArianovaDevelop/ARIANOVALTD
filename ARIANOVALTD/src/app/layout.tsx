@@ -7,6 +7,7 @@ import Navbar from "@/components/shared/Navbar";
 import CartSidebar from "@/components/shared/CartSidebar";
 import { Toaster } from "sonner";
 import Footer from "@/components/shared/Footer";
+import AgeGate from "@/components/shared/AgeGate";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -104,6 +105,7 @@ export default function RootLayout({
                 style: { background: '#1A1A1A', color: '#F5F5F5', borderColor: 'rgba(245, 245, 245, 0.1)', flexWrap: 'nowrap' }
               }}
             />
+            <AgeGate />
           </CartProvider>
         </body>
       </html>
