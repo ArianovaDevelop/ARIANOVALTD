@@ -34,6 +34,14 @@ export const eventType = defineType({
       initialValue: 0,
       description: 'Tickets currently locked in active Stripe checkouts.'
     }),
+    defineField({ 
+      name: 'sold_count', 
+      title: 'Total Tickets Sold', 
+      type: 'number', 
+      initialValue: 0,
+      readOnly: true,
+      description: 'Automatically tracked by the Stripe Webhook Engine.'
+    }),
   ],
   preview: {
     select: {

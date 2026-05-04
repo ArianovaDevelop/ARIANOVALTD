@@ -23,28 +23,28 @@ export default async function WinePage({ params }: { params: Promise<{ slug: str
   const available = (wine.physical_stock || 0) - (wine.committed_stock || 0);
   const isSoldOut = available <= 0;
 
-  const displayImageUrl = wine.imageObj 
-    ? urlFor(wine.imageObj).width(1200).url() 
+  const displayImageUrl = wine.imageObj
+    ? urlFor(wine.imageObj).width(1200).url()
     : wine.imageUrl;
 
   return (
     <div className="min-h-screen bg-brand-bg pt-10 pb-24">
       <div className="container mx-auto px-6 max-w-7xl">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-24 items-start">
-          
+
           {/* Left Column: Image */}
-          <div className="relative aspect-[3/4] w-full bg-black rounded-sm overflow-hidden shadow-sm border border-brand-border/5">
+          <div className="relative aspect-[3/4] w-full bg-[#F8F6F0] rounded-sm overflow-hidden shadow-sm border border-brand-border/5">
             {displayImageUrl ? (
               <Image
                 src={displayImageUrl}
                 alt={wine.title}
                 fill
-                className="object-contain p-12"
+                className="object-contain p-6"
                 sizes="(max-width: 768px) 100vw, 50vw"
                 priority
               />
             ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-brand-foreground/30 font-serif text-lg">
+              <div className="absolute inset-0 flex items-center justify-center text-brand-surface/40 font-serif text-lg italic">
                 Vintage Hidden
               </div>
             )}
@@ -75,7 +75,7 @@ export default async function WinePage({ params }: { params: Promise<{ slug: str
             <h1 className="font-serif text-4xl md:text-5xl text-brand-foreground mb-4 tracking-wide leading-tight">
               {wine.title}
             </h1>
-            
+
             <p className="text-xl font-light text-brand-foreground/80 tracking-widest mb-10">
               ${(wine.price / 100).toFixed(2)}
             </p>
@@ -113,7 +113,7 @@ export default async function WinePage({ params }: { params: Promise<{ slug: str
 
             {/* Purchase Action intercepting constraints natively */}
             <AddToCartButton wine={wine} available={available} />
-            
+
             {/* SKU / Metadata */}
             <div className="mt-12 pt-8 border-t border-brand-border/10 flex flex-col gap-2 text-[10px] text-brand-foreground/50 uppercase tracking-widest font-semibold">
               <p>SKU: {wine.sku || "N/A"}</p>

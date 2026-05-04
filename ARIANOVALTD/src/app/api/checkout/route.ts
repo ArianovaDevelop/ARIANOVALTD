@@ -104,7 +104,8 @@ export async function POST(req: Request) {
     let session;
     try {
       const serializedCart = JSON.stringify(verifiedItems.map(i => ({
-        id: i.id,
+        id: i._id,
+        type: i._type,
         qty: i.quantity,
         title: i.title,
         price: i.price

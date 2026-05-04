@@ -24,6 +24,7 @@ export default function AddToCartButton({ wine, available }: AddToCartButtonProp
       id: wine._id,
       title: wine.title,
       price: wine.price,
+      type: 'wine',
       imageUrl: wine.imageUrl,
       imageObj: wine.imageObj,
     })

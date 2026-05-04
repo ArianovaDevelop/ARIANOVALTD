@@ -44,6 +44,14 @@ export const wineType = defineType({
       type: 'number', 
       initialValue: 12 
     }),
+    defineField({ 
+      name: 'sold_count', 
+      title: 'Total Bottles Sold', 
+      type: 'number', 
+      initialValue: 0,
+      readOnly: true,
+      description: 'Automatically tracked by the Stripe Webhook Engine.'
+    }),
   ],
   preview: {
     select: {

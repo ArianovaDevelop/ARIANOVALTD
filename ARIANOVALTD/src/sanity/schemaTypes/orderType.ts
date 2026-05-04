@@ -34,9 +34,17 @@ export const orderType = defineType({
           type: 'object',
           name: 'orderItem',
           fields: [
-            { name: 'wine', type: 'reference', to: [{ type: 'wine' }] },
+            { name: 'wine', title: 'Wine Reference', type: 'reference', to: [{ type: 'wine' }] },
+            { name: 'event', title: 'Event Reference', type: 'reference', to: [{ type: 'event' }] },
             { name: 'quantity', type: 'number' },
-            { name: 'priceAtPurchase', title: 'Price at Purchase (Cents)', type: 'number' }
+            { name: 'priceAtPurchase', title: 'Price at Purchase (Cents)', type: 'number' },
+            { 
+              name: 'checkInCount', 
+              title: 'Tickets/Items Redeemed', 
+              type: 'number', 
+              initialValue: 0,
+              description: 'Increment this manually at the entrance for event check-ins.'
+            }
           ]
         }
       ]

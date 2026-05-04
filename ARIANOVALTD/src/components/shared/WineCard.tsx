@@ -37,7 +37,7 @@ export default function WineCard({ wine }: WineCardProps) {
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
       <motion.div 
-        className="relative aspect-[3/4] w-full overflow-hidden bg-black border border-brand-border/30 rounded-sm"
+        className="relative aspect-[3/4] w-full overflow-hidden bg-[#F8F6F0] border border-brand-border/30 rounded-sm"
         initial={{ borderColor: "rgba(245, 245, 245, 0.03)" }}
         whileHover={{ 
           boxShadow: "0px 20px 40px rgba(0, 0, 0, 0.8)",
@@ -49,11 +49,11 @@ export default function WineCard({ wine }: WineCardProps) {
             src={displayImageUrl}
             alt={wine.title}
             fill
-            className={`object-contain transition-all duration-1000 group-hover:scale-105 p-6 ${isSoldOut ? 'opacity-80 grayscale sm:grayscale-0' : ''}`}
+            className={`object-contain transition-all duration-1000 group-hover:scale-105 p-4 ${isSoldOut ? 'opacity-80 grayscale sm:grayscale-0' : ''}`}
             sizes="(max-width: 768px) 50vw, 25vw"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-brand-foreground/30 font-serif text-sm">
+          <div className="absolute inset-0 flex items-center justify-center text-brand-surface/40 font-serif text-sm italic">
             Vintage Hidden
           </div>
         )}

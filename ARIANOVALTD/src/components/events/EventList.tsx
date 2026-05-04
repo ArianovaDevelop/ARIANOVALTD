@@ -1,45 +1,32 @@
 "use client";
 
-import { motion } from "framer-motion";
 import { useState } from "react";
+import { motion } from "framer-motion";
+import { useCart } from "@/context/CartContext";
 import FadeInView from "@/components/shared/FadeInView";
 
 export default function EventList({ events }: { events: any[] }) {
+  const { addToCart, openCart } = useCart();
   const [loadingId, setLoadingId] = useState<string | null>(null);
 
-  const handleFastCheckout = async (event: any) => {
-    try {
-      setLoadingId(event._id);
+  const handleAddToCart = (event: any) => {
+    setLoadingId(event._id);
+    
+    // Add to unified cart instead of bypassing to Stripe
+    addToCart({
+      id: event._id,
+      title: event.title,
+      price: event.price,
+      type: 'event',
+      imageUrl: event.imageUrl || "https://images.unsplash.com/photo-1516594915697-87eb3b1c14ea?q=100&w=1000&auto=format&fit=crop",
+      imageObj: event.imageObj
+    });
 
-      // Fast checkout bypasses cart directly
-      const payload = {
-        items: [{
-          id: event._id,
-          title: event.title,
-          quantity: 1, // Standardizing single RSVPs for fast checkout
-          price: event.price,
-          imageUrl: event.imageUrl
-        }]
-      };
-
-      const response = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to initialize checkout");
-      }
-
-      // Redirect straight to Stripe
-      window.location.href = data.url;
-    } catch (err: any) {
-      alert(err.message);
+    // Open the sidebar so the user can adjust quantities (e.g. buying 4 tickets)
+    setTimeout(() => {
+      openCart();
       setLoadingId(null);
-    }
+    }, 300);
   };
 
   if (!events || events.length === 0) {
@@ -103,7 +90,7 @@ export default function EventList({ events }: { events: any[] }) {
                     </span>
                   ) : (
                     <button
-                      onClick={() => handleFastCheckout(event)}
+                      onClick={() => handleAddToCart(event)}
                       disabled={loadingId === event._id}
                       className="px-8 py-3 bg-brand-accent text-brand-bg hover:bg-brand-accent/90 disabled:opacity-50 transition-all text-xs font-semibold uppercase tracking-[0.2em] shadow-lg shadow-brand-accent/10"
                     >

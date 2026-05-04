@@ -70,17 +70,25 @@ export async function POST(req: Request) {
       const emailItems = []
 
       for (const item of cart) {
-        // 4. INVENTORY DEDUCTION (Safety Net Layer 3)
-        // Deduct physical stock AND release the temporary committed stock lock at the same time.
+        // 4. INVENTORY DEDUCTION & SALES TRACKING (Safety Net Layer 3)
+        // Deduct physical stock, release the temporary lock, and increment total sales count.
         tx.patch(item.id, p => p.dec({
           physical_stock: item.qty,
           committed_stock: item.qty 
+        }).setIfMissing({
+          sold_count: 0
+        }).inc({
+          sold_count: item.qty
         }))
 
+        // Determine if it's a wine or an event for the Order Reference
+        const isWine = item.type === 'wine';
+        
         sanityOrderItems.push({
           _key: Math.random().toString(36).substring(7),
           _type: 'orderItem',
-          wine: { _type: 'reference', _ref: item.id },
+          wine: isWine ? { _type: 'reference', _ref: item.id } : undefined,
+          event: !isWine ? { _type: 'reference', _ref: item.id } : undefined,
           quantity: item.qty,
           priceAtPurchase: item.price,
         })
