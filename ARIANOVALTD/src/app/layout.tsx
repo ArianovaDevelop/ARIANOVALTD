@@ -8,6 +8,7 @@ import CartSidebar from "@/components/shared/CartSidebar";
 import { Toaster } from "sonner";
 import Footer from "@/components/shared/Footer";
 import AgeGate from "@/components/shared/AgeGate";
+import { Analytics } from "@vercel/analytics/react";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
 
@@ -106,6 +107,7 @@ export default function RootLayout({
               }}
             />
             <AgeGate />
+            <Analytics />
           </CartProvider>
         </body>
       </html>
