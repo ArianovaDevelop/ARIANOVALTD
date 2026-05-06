@@ -7,6 +7,15 @@ const isOnboardingRoute = createRouteMatcher(['/onboarding'])
 const isWebhookRoute = createRouteMatcher(['/api/webhooks(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
+  // 0. Maintenance Mode / "Coming Soon" Enforcement
+  // This redirect forces all traffic to the homepage (where ComingSoon.tsx is waiting)
+  const maintenanceMode = process.env.NEXT_PUBLIC_MAINTENANCE_MODE === 'true';
+  const { pathname } = req.nextUrl;
+  
+  if (maintenanceMode && pathname !== '/' && !pathname.startsWith('/media')) {
+    return NextResponse.redirect(new URL('/', req.url));
+  }
+
   // 1. Webhook Exception
   // We need external services (like Stripe & Clerk) to hit our APIs without authentication.
   if (isWebhookRoute(req)) return; // Pass through webhooks

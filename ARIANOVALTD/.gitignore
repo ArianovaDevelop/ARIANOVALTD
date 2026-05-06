@@ -47,3 +47,5 @@ test-suite-analysis.txt
 tmp
 /_assets_backup/
 /.arianova/
+# clerk configuration (can include secrets)
+/.clerk/

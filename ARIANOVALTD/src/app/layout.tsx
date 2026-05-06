@@ -8,6 +8,7 @@ import CartSidebar from "@/components/shared/CartSidebar";
 import { Toaster } from "sonner";
 import Footer from "@/components/shared/Footer";
 import AgeGate from "@/components/shared/AgeGate";
+import ComingSoon from "@/components/shared/ComingSoon";
 import { Analytics } from "@vercel/analytics/react";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import "./globals.css";
@@ -95,20 +96,24 @@ export default function RootLayout({
     >
       <html lang="en" className={`h-full antialiased dark ${inter.variable} ${cormorant.variable}`}>
         <body className="min-h-full flex flex-col font-sans selection:bg-brand-accent/30 selection:text-brand-accent">
-          <CartProvider>
-            <Navbar />
-            <main className="flex-1 flex flex-col">{children}</main>
-            <Footer />
-            <CartSidebar />
-            <Toaster
-              position="bottom-center"
-              toastOptions={{
-                style: { background: '#1A1A1A', color: '#F5F5F5', borderColor: 'rgba(245, 245, 245, 0.1)', flexWrap: 'nowrap' }
-              }}
-            />
-            <AgeGate />
-            <Analytics />
-          </CartProvider>
+          {process.env.NEXT_PUBLIC_MAINTENANCE_MODE === "true" ? (
+            <ComingSoon />
+          ) : (
+            <CartProvider>
+              <Navbar />
+              <main className="flex-1 flex flex-col">{children}</main>
+              <Footer />
+              <CartSidebar />
+              <Toaster
+                position="bottom-center"
+                toastOptions={{
+                  style: { background: '#1A1A1A', color: '#F5F5F5', borderColor: 'rgba(245, 245, 245, 0.1)', flexWrap: 'nowrap' }
+                }}
+              />
+              <AgeGate />
+              <Analytics />
+            </CartProvider>
+          )}
         </body>
       </html>
     </ClerkProvider>
