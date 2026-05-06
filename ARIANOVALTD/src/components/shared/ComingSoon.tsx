@@ -63,7 +63,7 @@ export default function ComingSoon() {
               Inquiries
             </p>
             <p className="font-sans text-xs text-white/40 tracking-widest lowercase">
-              info@arianova.it
+              info@arianova.co.nz
             </p>
           </div>
         </motion.div>
