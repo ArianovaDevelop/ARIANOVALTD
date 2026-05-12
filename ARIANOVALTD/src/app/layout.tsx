@@ -25,8 +25,17 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.arianova.co.nz"),
   title: "Arianova | Curation of Emotion & Italian Excellence",
   description: "We don't just select wines — we design experiences. Every bottle is chosen to match a feeling, to elevate a moment, to turn a gathering into something rare.",
+  openGraph: {
+    title: "Arianova | Curation of Emotion & Italian Excellence",
+    description: "We don't just select wines — we design experiences.",
+    url: "/",
+    siteName: "Arianova",
+    locale: "en_US",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

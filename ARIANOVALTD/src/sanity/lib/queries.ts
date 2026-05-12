@@ -7,11 +7,14 @@ export const WINE_QUERY = groq`*[_type == "wine"] | order(_createdAt desc) {
   sku,
   price,
   vintage,
+  winery,
   "imageUrl": images[0].asset->url,
   "imageObj": images[0],
   physical_stock,
   committed_stock
 }`;
+
+export const ALL_WINE_SLUGS_QUERY = groq`*[_type == "wine" && defined(slug.current)][].slug.current`;
 
 export const SINGLE_WINE_QUERY = groq`*[_type == "wine" && slug.current == $slug][0] {
   _id,

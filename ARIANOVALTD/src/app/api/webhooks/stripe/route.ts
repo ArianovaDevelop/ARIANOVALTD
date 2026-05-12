@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { client } from '@/sanity/lib/client'
+import { createSalesOrder, Cin7OrderPayload } from '@/lib/cin7'
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2023-10-16' as any,
@@ -71,9 +72,9 @@ export async function POST(req: Request) {
 
       for (const item of cart) {
         // 4. INVENTORY DEDUCTION & SALES TRACKING (Safety Net Layer 3)
-        // Deduct physical stock, release the temporary lock, and increment total sales count.
+        // Release the temporary lock, and increment total sales count.
+        // Physical stock is now handled by Cin7 Webhooks.
         tx.patch(item.id, p => p.dec({
-          physical_stock: item.qty,
           committed_stock: item.qty 
         }).setIfMissing({
           sold_count: 0
@@ -114,6 +115,49 @@ export async function POST(req: Request) {
       await tx.commit()
       console.log(`🎉 [Success] Stripe checkout mapped natively to Inventory Logic!`)
       
+      // --- 5. CIN7 / UNLEASHED INTEGRATION ---
+      try {
+        const cin7Payload: Cin7OrderPayload = {
+          Customer: session.customer_details?.name || 'Arianova Customer',
+          ShippingAddress: {
+            Line1: session.customer_details?.address?.line1 || '',
+            City: session.customer_details?.address?.city || '',
+            Country: session.customer_details?.address?.country || '',
+            Postcode: session.customer_details?.address?.postal_code || '',
+          },
+          StripeSessionId: sessionId,
+          Lines: cart.map((item: any) => ({
+            SKU: item.sku || item.id, // Fallback to Sanity ID if SKU isn't in cart yet
+            Quantity: item.qty,
+            Price: item.price / 100 // Stripe uses cents, Cin7 uses dollars
+          }))
+        };
+        await createSalesOrder(cin7Payload);
+        
+        // Log SUCCESS to Sanity
+        await writeClient.create({
+          _type: 'integrationLog',
+          orderNumber,
+          service: 'cin7',
+          status: 'success',
+          payload: JSON.stringify(cin7Payload, null, 2),
+        });
+
+        console.log(`✅ [Success] Order dispatched to Cin7 Core!`);
+      } catch (cin7Error: any) {
+        console.error(`❌ [Error] Failed to push order ${sessionId} to Cin7:`, cin7Error);
+        
+        // Log FAILURE to Sanity
+        await writeClient.create({
+          _type: 'integrationLog',
+          orderNumber,
+          service: 'cin7',
+          status: 'failed',
+          errorMessage: cin7Error.message || 'Unknown Cin7 Error',
+          payload: JSON.stringify(cart, null, 2), // Save the cart data so we can retry later
+        });
+      }
+      
       // --- EMAIL NOTIFICATION LOGIC ---
       if (process.env.ENABLE_EMAILS === 'true') {
         try {
@@ -137,8 +181,25 @@ export async function POST(req: Request) {
               })
             });
           }
-        } catch (emailErr) {
+
+          // Log Email Success
+          await writeClient.create({
+            _type: 'integrationLog',
+            orderNumber,
+            service: 'resend',
+            status: 'success',
+          });
+        } catch (emailErr: any) {
           console.error(`❌ [Email Error] Resend Engine Failed:`, emailErr);
+          
+          // Log Email Failure
+          await writeClient.create({
+            _type: 'integrationLog',
+            orderNumber,
+            service: 'resend',
+            status: 'failed',
+            errorMessage: emailErr.message || 'Email engine failed',
+          });
         }
       }
     } catch (error: any) {

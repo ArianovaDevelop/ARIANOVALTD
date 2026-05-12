@@ -49,3 +49,4 @@ tmp
 /.arianova/
 # clerk configuration (can include secrets)
 /.clerk/
+/scratch/
