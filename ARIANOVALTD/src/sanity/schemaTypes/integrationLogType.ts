@@ -41,6 +41,19 @@ export const integrationLogType = defineType({
       readOnly: true,
     }),
     defineField({
+      name: 'syncState',
+      title: 'Sync State',
+      type: 'string',
+      options: {
+        list: [
+          { title: 'Sale Created', value: 'SALE_CREATED' },
+          { title: 'Payment Completed', value: 'PAYMENT_COMPLETED' },
+        ],
+      },
+      description: 'Used for two-step syncing to track if only the Sale was created, or if Payment was also logged.',
+      readOnly: true,
+    }),
+    defineField({
       name: 'errorMessage',
       title: 'Error Message',
       type: 'text',
@@ -58,6 +71,26 @@ export const integrationLogType = defineType({
       title: 'Timestamp',
       type: 'datetime',
       initialValue: () => new Date().toISOString(),
+      readOnly: true,
+    }),
+    defineField({
+      name: 'stripeSessionId',
+      title: 'Stripe Session ID',
+      type: 'string',
+      description: 'Used as idempotency key and correlation ID for ERP sync.',
+      readOnly: true,
+    }),
+    defineField({
+      name: 'retryCount',
+      title: 'Retry Count',
+      type: 'number',
+      initialValue: 0,
+      readOnly: true,
+    }),
+    defineField({
+      name: 'nextRetryAt',
+      title: 'Next Retry At',
+      type: 'datetime',
       readOnly: true,
     }),
   ],

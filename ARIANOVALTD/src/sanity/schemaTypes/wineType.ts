@@ -14,6 +14,7 @@ export const wineType = defineType({
     defineField({ name: 'grapeVarieties', title: 'Grape Varieties', type: 'string' }),
     defineField({ name: 'alcoholContent', title: 'Alcohol Content', type: 'number', description: 'Alcohol by volume (%)' }),
     defineField({ name: 'price', title: 'Price (in Cents)', type: 'number', description: 'Store in cents for Stripe (e.g., $45.00 = 4500)' }),
+    defineField({ name: 'unit_cost', title: 'Unit Cost (in Cents)', type: 'number', description: 'Store in cents. Used for Cin7 inventory valuation (Landed Cost).' }),
     defineField({ name: 'tastingNotes', title: 'Tasting Notes', type: 'array', of: [{ type: 'block' }] }),
     defineField({
       name: 'images',
