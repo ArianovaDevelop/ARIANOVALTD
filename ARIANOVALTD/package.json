@@ -10,7 +10,10 @@
     "lint": "next lint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "seed:events": "node scripts/seed-events.mjs"
+    "seed:events": "node scripts/seed-events.mjs",
+    "stock:check": "node scripts/production-ready/check-stock-drift.mjs",
+    "stock:sync": "node scripts/production-ready/sync-cin7-stock.mjs",
+    "prices:sync": "node scripts/production-ready/sync-prices-to-sanity.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.6",

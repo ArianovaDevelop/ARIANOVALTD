@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Html, Body, Head, Heading, Hr, Container, Preview, Section, Text, Button } from '@react-email/components';
+import { getAppUrl } from '@/lib/urls';
 
 interface ReceiptEmailProps {
   orderNumber: string;
@@ -16,7 +17,7 @@ export default function ReceiptEmail({
   totalAmount = 0,
   items = [],
   sessionId = "",
-  appUrl = "http://localhost:3000"
+  appUrl = getAppUrl()
 }: ReceiptEmailProps) {
   return (
     <Html>

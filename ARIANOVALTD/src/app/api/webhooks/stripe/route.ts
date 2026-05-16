@@ -4,6 +4,7 @@ import { client } from '@/sanity/lib/client'
 import { writeClient } from '@/sanity/lib/write-client'
 import { createSalesOrder, createSalesPayment, createSalesInvoice, authoriseSalesOrder, Cin7SalePayload, Cin7PaymentPayload } from '@/lib/cin7'
 import { Logger } from '@/lib/logger'
+import { getAppUrl } from '@/lib/urls'
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2023-10-16' as any,
@@ -251,7 +252,7 @@ export async function POST(req: Request) {
                 totalAmount: session.amount_total || 0,
                 sessionId: sessionId,
                 items: emailItems,
-                appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+                appUrl: getAppUrl()
               })
             });
           }

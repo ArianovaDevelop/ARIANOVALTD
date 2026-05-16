@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { auth } from '@clerk/nextjs/server'
 import { client } from '@/sanity/lib/client'
 import { Logger } from '@/lib/logger'
+import { getAppUrl } from '@/lib/urls'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: '2023-10-16' as any,
@@ -107,12 +108,14 @@ export async function POST(req: Request) {
         sku: i.sku,
       })));
 
+      const origin = req.headers.get('origin') || getAppUrl();
+
       session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: lineItems,
         mode: 'payment',
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/cart`,
+        success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/cart`,
         metadata: {
           clerkUserId: userId || 'guest',
           serializedCart, // Metadata Shortcut
