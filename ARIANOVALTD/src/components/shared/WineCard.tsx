@@ -71,7 +71,7 @@ export default function WineCard({ wine }: WineCardProps) {
       </motion.div>
 
       <div className="flex flex-col gap-1.5 text-center mt-1 px-2">
-        <h3 className="font-serif text-lg tracking-wide text-brand-foreground truncate transition-colors group-hover:text-brand-foreground/70">
+        <h3 className="font-serif text-lg tracking-wide text-brand-foreground transition-colors group-hover:text-brand-foreground/70">
           {wine.title}
         </h3>
         <div className="flex items-center justify-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-brand-foreground/60">

@@ -123,28 +123,13 @@ export default async function CellarPage() {
                         : item.wine?.imageUrl;
                         
                       return (
-                        <div key={idx} className="flex items-center gap-5">
-                          <div className="relative w-14 h-20 bg-brand-bg border border-brand-border/10 rounded-sm overflow-hidden flex-shrink-0">
-                            {displayImageUrl ? (
-                              <Image 
-                                src={displayImageUrl} 
-                                alt={item.wine?.title || 'Arianova Vintage'} 
-                                fill 
-                                className="object-cover" 
-                                sizes="56px" 
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-brand-foreground/20">
-                                <Wine className="w-5 h-5" />
-                              </div>
-                            )}
-                          </div>
+                        <div key={idx} className="flex items-center gap-6 py-2 border-b border-brand-border/5 last:border-0">
                           <div className="flex-1">
-                            <p className="font-serif text-lg text-brand-foreground">
-                              {item.wine?.title} {item.wine?.vintage && <span className="opacity-70 text-base">({item.wine.vintage})</span>}
+                            <p className="font-serif text-xl text-brand-foreground leading-tight">
+                              {item.wine?.title} {item.wine?.vintage && <span className="opacity-70 text-lg">({item.wine.vintage})</span>}
                             </p>
-                            <p className="text-[10px] uppercase font-bold tracking-widest text-brand-foreground/60 mt-1">
-                              Qty: {item.quantity}  <span className="px-2 opacity-50">|</span>  ${(item.priceAtPurchase / 100).toFixed(2)} each
+                            <p className="text-[10px] uppercase font-bold tracking-widest text-brand-foreground/60 mt-2">
+                              QTY: {item.quantity} &nbsp;|&nbsp; ${(item.priceAtPurchase / 100).toFixed(2)} EACH
                             </p>
                           </div>
                         </div>

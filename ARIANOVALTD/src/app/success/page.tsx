@@ -27,7 +27,8 @@ const ORDER_QUERY = groq`*[_type == "order" && stripeSessionId == $sessionId][0]
       title,
       "imageUrl": images[0].asset->url,
       vintage,
-      tastingNotes
+      tastingNotes,
+      "slug": slug.current
     }
   }
 }`
@@ -128,25 +129,35 @@ export default async function SuccessPage({ searchParams }: { searchParams: Prom
             {order ? (
               order.items.map((item: any, idx: number) => (
                 <div key={idx} className="flex gap-6 items-center p-4 border border-brand-border/5 rounded-sm bg-brand-bg/30">
-                  <div className="relative w-16 h-24 bg-brand-surface/50 rounded-sm overflow-hidden flex-shrink-0">
+                  <div className="relative w-28 h-28 bg-[#F8F6F0] rounded-md overflow-hidden flex-shrink-0 shadow-sm border border-brand-border/10">
                     {item.wine?.imageUrl && (
-                      <Image src={item.wine?.imageUrl} alt={item.wine?.title} fill className="object-cover" sizes="64px" />
+                      <Image 
+                        src={item.wine?.imageUrl} 
+                        alt={item.wine?.title} 
+                        fill 
+                        className="object-contain p-2" 
+                        sizes="112px" 
+                      />
                     )}
                   </div>
+
                   <div className="flex-1">
                     <h4 className="font-serif text-lg text-brand-foreground tracking-wide">
                       {item.wine?.title}
                     </h4>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-brand-foreground/60 mt-1">
-                      Quantity: {item.quantity} • ${(item.priceAtPurchase / 100).toFixed(2)}
+                      QTY: {item.quantity} &nbsp;|&nbsp; ${(item.priceAtPurchase / 100).toFixed(2)} EACH
                     </p>
                     
-                    {/* Placeholder Action Block for Tasting Notes */}
-                    <div className="mt-4 inline-flex items-center gap-2 text-[9px] uppercase tracking-widest text-brand-accent font-bold cursor-pointer hover:text-brand-foreground transition-colors bg-brand-bg px-3 py-1.5 rounded-sm border border-brand-accent/20">
+                    {/* Functional Link for Tasting Notes */}
+                    <Link 
+                      href={`/wines/${item.wine?.slug}`}
+                      className="mt-4 inline-flex items-center gap-2 text-[9px] uppercase tracking-widest text-brand-accent font-bold cursor-pointer hover:text-brand-foreground transition-colors bg-brand-bg px-3 py-1.5 rounded-sm border border-brand-accent/20"
+                    >
                       <FileText className="w-3 h-3" />
                       View Sommelier Notes
                       <ChevronRight className="w-3 h-3 ml-[-4px]" />
-                    </div>
+                    </Link>
                   </div>
                 </div>
               ))
