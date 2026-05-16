@@ -74,8 +74,11 @@ export async function POST(req: Request) {
 
       for (const item of cart) {
         // 4. INVENTORY DEDUCTION & SALES TRACKING (Safety Net Layer 3)
-        // Release the temporary lock, and increment total sales count.
-        // Physical stock is now handled by Cin7 Webhooks.
+        if (!item.id) {
+          Logger.error(`[Webhook] Skipping item with missing ID in cart`, { item });
+          continue;
+        }
+
         tx.patch(item.id, p => p.setIfMissing({ 
           committed_stock: 0,
           sold_count: 0
