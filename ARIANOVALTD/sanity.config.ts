@@ -6,7 +6,7 @@ import { structure } from './src/sanity/structure';
 export default defineConfig({
   basePath: '/studio',
   projectId: process.env.NEXT_PUBLIC_SANITY_PROJECT_ID!,
-  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET!,
+  dataset: process.env.NEXT_PUBLIC_SANITY_DATASET || 'production',
   
   title: 'Wine Test Admin',
 
