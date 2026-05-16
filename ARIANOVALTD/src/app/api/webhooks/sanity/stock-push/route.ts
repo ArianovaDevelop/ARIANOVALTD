@@ -68,21 +68,24 @@ async function pushStockToCin7(sku: string, newQuantity: number): Promise<void> 
     throw new Error('FATAL: CIN7_ACCOUNT_ID or CIN7_API_KEY is not configured.');
   }
 
-  // Step 1: Create a DRAFT stock adjustment
+  // Create and Complete the stock adjustment in one atomic POST
   const adjustmentPayload = {
     EffectiveDate: new Date().toISOString().split('T')[0], // YYYY-MM-DD
-    Status: 'DRAFT',
-    Account: 'Inventory Adjustment',
+    Status: 'COMPLETED',
+    Account: '1400',
+    UpdateOnHand: true,
+    Reference: `Sanity Push: ${sku}`,
     Lines: [
       {
         SKU: sku,
+        Quantity: newQuantity,
+        UnitCost: 1.00,
         Location: CIN7_LOCATION,
-        NewQuantity: newQuantity,
       },
     ],
   };
 
-  const createRes = await fetch(`${CIN7_BASE_URL}/stockAdjustment`, {
+  const response = await fetch(`${CIN7_BASE_URL}/stockAdjustment`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -92,35 +95,9 @@ async function pushStockToCin7(sku: string, newQuantity: number): Promise<void> 
     body: JSON.stringify(adjustmentPayload),
   });
 
-  if (!createRes.ok) {
-    const err = await createRes.json().catch(() => ({}));
-    throw new Error(`Cin7 stockAdjustment create failed: ${JSON.stringify(err)}`);
-  }
-
-  const created = await createRes.json();
-  const taskId = created?.ID || created?.TaskID;
-
-  if (!taskId) {
-    throw new Error('Cin7 stockAdjustment did not return a TaskID.');
-  }
-
-  // Step 2: Complete the adjustment by setting status to COMPLETED
-  const completeRes = await fetch(`${CIN7_BASE_URL}/stockAdjustment`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-      'api-auth-accountid': accountId,
-      'api-auth-applicationkey': apiKey,
-    },
-    body: JSON.stringify({
-      TaskID: taskId,
-      Status: 'COMPLETED',
-    }),
-  });
-
-  if (!completeRes.ok) {
-    const err = await completeRes.json().catch(() => ({}));
-    throw new Error(`Cin7 stockAdjustment complete failed: ${JSON.stringify(err)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(`Cin7 stockAdjustment failed: ${JSON.stringify(err)}`);
   }
 }
 
