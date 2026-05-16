@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { client } from '@/sanity/lib/client'
 import { writeClient } from '@/sanity/lib/write-client'
-import { createSalesOrder, createSalesPayment, Cin7SalePayload, Cin7PaymentPayload } from '@/lib/cin7'
+import { createSalesOrder, createSalesPayment, createSalesInvoice, authoriseSalesOrder, Cin7SalePayload, Cin7PaymentPayload } from '@/lib/cin7'
 import { Logger } from '@/lib/logger'
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY as string, {
@@ -157,6 +157,7 @@ export async function POST(req: Request) {
               Name: item.name || 'Arianova Product', // Schema validation safety
               Quantity: item.qty,
               Price: item.price / 100,
+              Total: (item.price / 100) * item.qty, // Explicit total to satisfy Cin7 validation
               TaxRule: 'Tax on Sales',
             })),
             AdditionalCharges: additionalCharges.length > 0 ? additionalCharges : undefined
@@ -182,13 +183,27 @@ export async function POST(req: Request) {
         await Logger.updateTransactionLog(integrationLogId, { syncState: 'SALE_CREATED' });
         Logger.info(`[Step 1] Order created in Cin7 Core!`, { orderNumber, saleId });
 
-        // 4. Execute Step 2: Create Payment
+        // 4. NEW STEP A: Authorise Order
+        if (saleId) {
+          await authoriseSalesOrder(saleId, cin7Payload.Order?.Lines);
+          await Logger.updateTransactionLog(integrationLogId, { syncState: 'SALE_CREATED' }); // Still same state but confirmed
+          Logger.info(`[Step 2] Order authorised in Cin7 Core!`, { orderNumber });
+        }
+
+        // 4. NEW STEP B: Authorise Invoice (Required for Payment)
+        if (saleId) {
+          await createSalesInvoice(saleId, cin7Payload.Order?.Lines);
+          await Logger.updateTransactionLog(integrationLogId, { syncState: 'INVOICE_AUTHORISED' });
+          Logger.info(`[Step 2] Invoice authorised in Cin7 Core!`, { orderNumber });
+        }
+
+        // 5. Execute Step 3: Create Payment
         if (saleId) {
           const paymentPayload: Cin7PaymentPayload = {
             TaskID: saleId,
             Amount: (session.amount_total || 0) / 100,
             DatePaid: new Date().toISOString().split('.')[0], // Match Cin7's preferred format
-            Account: '1200', 
+            Account: '1199', 
             CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);

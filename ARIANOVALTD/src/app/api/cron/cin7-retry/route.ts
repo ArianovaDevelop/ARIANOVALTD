@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { writeClient } from '@/sanity/lib/write-client';
-import { createSalesOrder, createSalesPayment, checkSalesOrderExists, Cin7SalePayload, Cin7PaymentPayload } from '@/lib/cin7';
+import { createSalesOrder, createSalesPayment, createSalesInvoice, authoriseSalesOrder, checkSalesOrderExists, Cin7SalePayload, Cin7PaymentPayload } from '@/lib/cin7';
 import { Logger, SyncState } from '@/lib/logger';
 
 // Strict Type Safety for Sanity Log
@@ -70,6 +70,12 @@ export async function GET(req: Request) {
           throw new Error(`Malformed payload for order ${log.orderNumber}: missing CustomerID or Order Lines.`);
         }
 
+        // Fix: Explicitly set Line Totals to satisfy Cin7 validation
+        orderPayload.Order.Lines = orderPayload.Order.Lines.map((line: any) => ({
+          ...line,
+          Total: line.Total || (line.Price * line.Quantity)
+        }));
+
         Logger.info(`[Janitor] Retrying Order: ${log.orderNumber} (Attempt ${log.retryCount + 1})`);
 
         if (log.stripeSessionId) {
@@ -80,14 +86,22 @@ export async function GET(req: Request) {
             Logger.info(`[Janitor] Order ${log.orderNumber} already exists in Cin7 (SaleID: ${existingOrder.SaleID}).`);
 
             if (log.syncState !== 'PAYMENT_COMPLETED') {
-              // We need to complete the payment
-              Logger.info(`[Janitor] Order exists but payment is incomplete. Executing Step 2: Payment.`);
+              // We need to complete the order authorisation then invoice then payment
+              Logger.info(`[Janitor] Order exists but payment is incomplete. Executing Step 2: Auth Order + Invoice + Payment.`);
+              
+              // Ensure Order is authorised
+              await authoriseSalesOrder(existingOrder.SaleID, orderPayload.Order?.Lines);
+
+              // Ensure Invoice is authorised
+              await createSalesInvoice(existingOrder.SaleID, orderPayload.Order?.Lines);
+              await Logger.updateTransactionLog(log._id, { syncState: 'INVOICE_AUTHORISED' });
+
               const paymentPayload: Cin7PaymentPayload = {
                 TaskID: existingOrder.SaleID,
                 // Fix #6: Use Stripe's stored amountTotal as the source of truth
                 Amount: log.amountTotal ?? orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) ?? 0,
                 DatePaid: new Date().toISOString().split('.')[0],
-                Account: '1200',
+                Account: '1199',
                 CurrencyRate: 1
               };
               await createSalesPayment(paymentPayload);
@@ -115,8 +129,19 @@ export async function GET(req: Request) {
         const saleId = saleResponse.ID;
 
         await Logger.updateTransactionLog(log._id, { syncState: 'SALE_CREATED' });
+        
+        // Execute Step 2: Authorise Order
+        if (saleId) {
+          await authoriseSalesOrder(saleId, orderPayload.Order?.Lines);
+        }
 
-        // Execute Step 2: Create Payment
+        // Execute Step 3: Authorise Invoice
+        if (saleId) {
+          await createSalesInvoice(saleId, orderPayload.Order?.Lines);
+          await Logger.updateTransactionLog(log._id, { syncState: 'INVOICE_AUTHORISED' });
+        }
+
+        // Execute Step 4: Create Payment
         if (saleId) {
           const paymentPayload: Cin7PaymentPayload = {
             TaskID: saleId,
@@ -125,7 +150,7 @@ export async function GET(req: Request) {
               ((orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
                 (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + charge.Price, 0) || 0)),
             DatePaid: new Date().toISOString().split('.')[0],
-            Account: '1200',
+            Account: '1199',
             CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);

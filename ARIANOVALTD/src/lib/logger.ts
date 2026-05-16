@@ -2,7 +2,7 @@ import { writeClient } from '@/sanity/lib/write-client';
 
 export type LogStatus = 'success' | 'failed' | 'pending';
 export type LogService = 'cin7' | 'stripe' | 'system' | 'resend';
-export type SyncState = 'SALE_CREATED' | 'PAYMENT_COMPLETED';
+export type SyncState = 'SALE_CREATED' | 'INVOICE_AUTHORISED' | 'PAYMENT_COMPLETED' | 'CREDIT_NOTE_CREATED';
 
 export interface TransactionLogPayload {
   orderNumber: string;

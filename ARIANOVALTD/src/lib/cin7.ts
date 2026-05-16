@@ -170,7 +170,10 @@ export async function createSalesOrder(payload: Cin7SalePayload): Promise<any> {
     const response = await fetch(`${DEAR_API_URL}/Sale`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        Status: 'AUTHORISED' // Authorise the Sale itself
+      }),
     });
 
     if (!response.ok) {
@@ -182,6 +185,64 @@ export async function createSalesOrder(payload: Cin7SalePayload): Promise<any> {
   } catch (error) {
     console.error("Cin7 Create Sale Failed:", error);
     throw error;
+  }
+}
+
+/**
+ * Authorises an Order for an existing Sale in Cin7.
+ * Required before an Invoice can be created.
+ */
+export async function authoriseSalesOrder(saleId: string, lines?: any[]): Promise<any> {
+  try {
+    const response = await fetch(`${DEAR_API_URL}/Sale/Order?ID=${saleId}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        SaleID: saleId,
+        Status: 'AUTHORISED',
+        Lines: lines // Re-send lines to ensure the order is not "empty"
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Cin7 Authorise Order Error: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  } catch (err: any) {
+    throw err;
+  }
+}
+
+/**
+ * Authorises an Invoice for an existing Sale in Cin7.
+ * Required before payments can be applied.
+ */
+export async function createSalesInvoice(saleId: string, lines?: any[]): Promise<any> {
+  try {
+    const today = new Date().toISOString().split('.')[0];
+    const response = await fetch(`${DEAR_API_URL}/Sale/Invoice?ID=${saleId}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        SaleID: saleId,
+        TaskID: saleId,
+        InvoiceDate: today,
+        InvoiceDueDate: today,
+        Status: 'AUTHORISED',
+        Lines: lines // Re-send lines to populate the invoice
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Cin7 Authorise Invoice Error: ${JSON.stringify(errorData)}`);
+    }
+
+    return await response.json();
+  } catch (err: any) {
+    throw err;
   }
 }
 
