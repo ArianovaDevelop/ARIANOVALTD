@@ -102,7 +102,7 @@ export interface Cin7ProductAvailabilityResponse {
 }
 
 export interface Cin7PaymentPayload {
-  SaleID: string;
+  TaskID: string; // The Sale ID from the previous step
   Type?: 'PREPAYMENT' | 'PAYMENT' | 'REFUND';
   Reference?: string;
   Amount: number;

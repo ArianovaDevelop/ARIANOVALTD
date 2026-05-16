@@ -185,7 +185,7 @@ export async function POST(req: Request) {
         // 4. Execute Step 2: Create Payment
         if (saleId) {
           const paymentPayload: Cin7PaymentPayload = {
-            SaleID: saleId,
+            TaskID: saleId,
             Amount: (session.amount_total || 0) / 100,
             DatePaid: new Date().toISOString().split('.')[0], // Match Cin7's preferred format
             Account: 'Stripe Clearing Account' 

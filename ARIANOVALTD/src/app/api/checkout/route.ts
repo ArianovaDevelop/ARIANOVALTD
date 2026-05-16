@@ -57,7 +57,10 @@ export async function POST(req: Request) {
 
           verifiedItems.push({
             ...item,
-            price: dbWine.price // SECURITY: Use authoritative price from Sanity
+            id: dbWine._id,      // Ensure real Sanity ID is captured
+            type: dbWine._type,  // Ensure real type is captured
+            sku: dbWine.sku,     // Ensure real SKU is captured
+            price: dbWine.price  // SECURITY: Use authoritative price from Sanity
           })
         }
 
@@ -114,6 +117,10 @@ export async function POST(req: Request) {
           clerkUserId: userId || 'guest',
           serializedCart, // Metadata Shortcut
         },
+        shipping_address_collection: {
+          allowed_countries: ['NZ', 'AU'], // Restrict to your shipping zones
+        },
+        billing_address_collection: 'required',
         // Force the checkout portal to expire in 30 minutes to minimize "Ghost Lock" duration
         expires_at: Math.floor(Date.now() / 1000) + (30 * 60)
       })
