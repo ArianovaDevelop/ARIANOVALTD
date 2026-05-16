@@ -139,10 +139,10 @@ export async function POST(req: Request) {
           CustomerID: process.env.CIN7_DEFAULT_CUSTOMER_ID || '00000000-0000-0000-0000-000000000000',
           Customer: session.customer_details?.name || 'Arianova Customer',
           ShippingAddress: {
-            Line1: session.customer_details?.address?.line1 || '',
-            City: session.customer_details?.address?.city || '',
-            Country: session.customer_details?.address?.country || '',
-            Postcode: session.customer_details?.address?.postal_code || '',
+            Line1: session.customer_details?.address?.line1 || 'Address Not Provided',
+            City: session.customer_details?.address?.city || 'City Not Provided',
+            Country: session.customer_details?.address?.country || 'NZ',
+            Postcode: session.customer_details?.address?.postal_code || '0000',
           },
           CustomerReference: sessionId, // Our idempotency/correlation key
           Location: process.env.CIN7_DEFAULT_LOCATION || 'Main Warehouse',
