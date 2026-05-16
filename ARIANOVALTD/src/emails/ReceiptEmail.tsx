@@ -22,16 +22,16 @@ export default function ReceiptEmail({
   return (
     <Html>
       <Head />
-      <Preview>Your Arianova Vintage Collection is Secured - Order #{orderNumber}</Preview>
+      <Preview>Your Arianova Selection is Secured - Order #{orderNumber}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Heading style={h1}>Allocation Confirmed</Heading>
           <Text style={text}>
-            Thank you, {customerName}. Your collection has been successfully secured and is currently undergoing fulfillment preparation by our sommeliers.
+            Thank you, {customerName}. Your order has been successfully secured and is currently undergoing fulfillment preparation by our sommeliers.
           </Text>
-          
+
           <Hr style={hr} />
-          
+
           <Section style={orderSection}>
             <Text style={label}>Order Identifier Number</Text>
             <Text style={data}>{orderNumber}</Text>
@@ -55,7 +55,7 @@ export default function ReceiptEmail({
               </React.Fragment>
             ))}
           </Section>
-          
+
           <Hr style={hr} />
 
           <Section style={buttonContainer}>
@@ -66,9 +66,9 @@ export default function ReceiptEmail({
               Track Your Vintage
             </Button>
           </Section>
-          
+
           <Text style={footer}>
-            Authenticity Guaranteed by Arianova Estate
+            Authenticity Guaranteed by Arianova ltd
           </Text>
         </Container>
       </Body>
@@ -76,24 +76,24 @@ export default function ReceiptEmail({
   );
 }
 
-// Inline CSS enforcing strict ESP compatibility guarantees
+// Inline CSS enforcing strict ESP compatibility guarantees & Noir Brand Style
 const main = {
-  backgroundColor: '#F9F6EE',
-  fontFamily: '"Times New Roman", Times, serif',
+  backgroundColor: '#0B0B0B',
+  fontFamily: 'Georgia, "Times New Roman", Times, serif',
   padding: '40px 0',
 };
 
 const container = {
-  backgroundColor: '#ffffff',
+  backgroundColor: '#1A1A1A',
   margin: '0 auto',
   padding: '40px',
   maxWidth: '600px',
-  border: '1px solid rgba(74, 4, 4, 0.1)',
+  border: '1px solid rgba(245, 245, 245, 0.1)',
   borderRadius: '2px',
 };
 
 const h1 = {
-  color: '#4A0404',
+  color: '#C5A059',
   fontSize: '28px',
   fontWeight: 'normal',
   margin: '0 0 20px',
@@ -101,14 +101,14 @@ const h1 = {
 };
 
 const h2 = {
-  color: '#4A0404',
+  color: '#C5A059',
   fontSize: '20px',
   fontWeight: 'normal',
   margin: '0 0 20px',
 };
 
 const text = {
-  color: 'rgba(74, 4, 4, 0.8)',
+  color: 'rgba(245, 245, 245, 0.8)',
   fontSize: '16px',
   lineHeight: '26px',
   textAlign: 'center' as const,
@@ -119,7 +119,7 @@ const orderSection = {
 };
 
 const label = {
-  color: 'rgba(74, 4, 4, 0.4)',
+  color: 'rgba(245, 245, 245, 0.4)',
   fontSize: '10px',
   textTransform: 'uppercase' as const,
   letterSpacing: '2px',
@@ -128,7 +128,7 @@ const label = {
 };
 
 const data = {
-  color: '#4A0404',
+  color: '#F5F5F5',
   fontSize: '20px',
   margin: '0',
 };
@@ -138,13 +138,13 @@ const itemsSection = {
 };
 
 const itemTitle = {
-  color: '#4A0404',
+  color: '#F5F5F5',
   fontSize: '16px',
   margin: '0 0 4px',
 };
 
 const itemMeta = {
-  color: 'rgba(74, 4, 4, 0.6)',
+  color: '#C5A059',
   fontSize: '10px',
   textTransform: 'uppercase' as const,
   letterSpacing: '2px',
@@ -158,8 +158,8 @@ const buttonContainer = {
 };
 
 const button = {
-  backgroundColor: '#4A0404',
-  color: '#F9F6EE',
+  backgroundColor: '#C5A059',
+  color: '#0B0B0B',
   fontSize: '12px',
   fontWeight: 'bold',
   textTransform: 'uppercase' as const,
@@ -169,12 +169,12 @@ const button = {
 };
 
 const hr = {
-  borderColor: 'rgba(74, 4, 4, 0.1)',
+  borderColor: 'rgba(245, 245, 245, 0.1)',
   margin: '30px 0',
 };
 
 const footer = {
-  color: 'rgba(74, 4, 4, 0.5)',
+  color: 'rgba(245, 245, 245, 0.5)',
   fontSize: '10px',
   textTransform: 'uppercase' as const,
   letterSpacing: '2px',
