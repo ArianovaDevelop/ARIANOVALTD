@@ -51,6 +51,7 @@ export async function POST(req: Request) {
           
           tx.patch(item.id, { 
             ifRevisionID: dbWine._rev,
+            setIfMissing: { committed_stock: 0 },
             inc: { committed_stock: item.quantity } 
           })
 

@@ -76,10 +76,11 @@ export async function POST(req: Request) {
         // 4. INVENTORY DEDUCTION & SALES TRACKING (Safety Net Layer 3)
         // Release the temporary lock, and increment total sales count.
         // Physical stock is now handled by Cin7 Webhooks.
-        tx.patch(item.id, p => p.dec({
-          committed_stock: item.qty 
-        }).setIfMissing({
+        tx.patch(item.id, p => p.setIfMissing({ 
+          committed_stock: 0,
           sold_count: 0
+        }).dec({
+          committed_stock: item.qty 
         }).inc({
           sold_count: item.qty
         }))
