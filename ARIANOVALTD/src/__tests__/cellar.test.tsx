@@ -20,6 +20,12 @@ vi.mock('@/sanity/lib/fetch', () => ({
   sanityFetch: vi.fn()
 }))
 
+vi.mock('@/sanity/env', () => ({
+  dataset: 'test-dataset',
+  projectId: 'test-project-id',
+  apiVersion: '2024-03-22'
+}))
+
 describe('Private Cellar Dashboard (Strict Server Component)', () => {
   
   beforeEach(() => {

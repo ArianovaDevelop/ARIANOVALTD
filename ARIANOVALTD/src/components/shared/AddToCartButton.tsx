@@ -11,6 +11,7 @@ interface AddToCartButtonProps {
     price: number
     imageUrl: string | null
     imageObj?: any
+    winery?: string
   }
   available: number
 }
@@ -27,6 +28,7 @@ export default function AddToCartButton({ wine, available }: AddToCartButtonProp
       type: 'wine',
       imageUrl: wine.imageUrl,
       imageObj: wine.imageObj,
+      winery: wine.winery,
     })
 
     // Premium Toast Hook

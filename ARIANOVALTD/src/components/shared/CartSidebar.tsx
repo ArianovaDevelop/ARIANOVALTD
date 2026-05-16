@@ -81,13 +81,12 @@ export default function CartSidebar() {
                 <ul className="flex flex-col gap-6">
                   <AnimatePresence mode="popLayout">
                     {cart.map((item) => {
-                      const isWine = item.type === 'wine';
+                      const isWine = item.type !== 'event';
+                      
                       const displayImageUrl = (item.imageObj && item.imageObj.asset)
                         ? urlFor(item.imageObj)
                           .width(600)
-                          .height(800)
                           .quality(100)
-                          .fit(isWine ? 'max' : 'crop')
                           .auto('format')
                           .url()
                         : item.imageUrl;
@@ -107,7 +106,7 @@ export default function CartSidebar() {
                                 src={displayImageUrl}
                                 alt={item.title}
                                 fill
-                                className={`${isWine ? 'object-contain p-1' : 'object-cover'} transition-opacity duration-500`}
+                                className={`${isWine ? 'object-contain p-2' : 'object-cover'} transition-opacity duration-500`}
                                 sizes="96px"
                               />
                             ) : (

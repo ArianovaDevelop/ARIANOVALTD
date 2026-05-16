@@ -51,6 +51,7 @@ vi.mock('@/sanity/lib/client', () => {
       fetch: mockFetch,
       withConfig: vi.fn().mockReturnValue({
         transaction: mockTransaction,
+        create: mockCreate,
         fetch: mockFetch,
       })
     }

@@ -2,9 +2,9 @@ name: Vitest Suite
 
 on:
   push:
-    branches: [ main ]
+    branches: [ '**' ]
   pull_request:
-    branches: [ main ]
+    branches: [ '**' ]
 
 jobs:
   test:
@@ -15,6 +15,8 @@ jobs:
       STRIPE_WEBHOOK_SECRET: whsec_test_dummy
       SANITY_WRITE_TOKEN: p_test_dummy
       CRON_SECRET: cron_test_dummy
+      NEXT_PUBLIC_SANITY_PROJECT_ID: tp_test_dummy
+      NEXT_PUBLIC_SANITY_DATASET: production
       NEXT_PUBLIC_APP_URL: http://localhost:3000
 
     steps:

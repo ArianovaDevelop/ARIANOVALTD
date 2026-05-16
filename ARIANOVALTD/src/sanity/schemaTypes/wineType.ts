@@ -14,6 +14,7 @@ export const wineType = defineType({
     defineField({ name: 'grapeVarieties', title: 'Grape Varieties', type: 'string' }),
     defineField({ name: 'alcoholContent', title: 'Alcohol Content', type: 'number', description: 'Alcohol by volume (%)' }),
     defineField({ name: 'price', title: 'Price (in Cents)', type: 'number', description: 'Store in cents for Stripe (e.g., $45.00 = 4500)' }),
+    defineField({ name: 'unit_cost', title: 'Unit Cost (in Cents)', type: 'number', description: 'Store in cents. Used for Cin7 inventory valuation (Landed Cost).' }),
     defineField({ name: 'tastingNotes', title: 'Tasting Notes', type: 'array', of: [{ type: 'block' }] }),
     defineField({
       name: 'images',
@@ -23,20 +24,28 @@ export const wineType = defineType({
       description: 'ARIANOVA NOIR STYLE GUIDE: Use portrait shots with a 3:4 aspect ratio (Recommended: 1200x1600px). Background should be pure obsidian (#050505) or transparent. Ensure the bottle is centered with sharp labels and studio lighting that highlights glass curves.'
     }),
     
-    // Logistics & State Management
+    // Logistics & State Management (Managed by Cin7)
     defineField({ 
       name: 'physical_stock', 
       title: 'Physical Stock', 
       type: 'number', 
       initialValue: 0,
-      description: 'The actual number of bottles sitting in the warehouse.'
+      readOnly: true,
+      description: 'READ ONLY: Managed automatically by Cin7 Core Webhooks.'
     }),
     defineField({ 
       name: 'committed_stock', 
       title: 'Committed Stock', 
       type: 'number', 
       initialValue: 0,
-      description: 'Bottles currently locked in active Stripe checkouts.'
+      description: 'Soft locks managed by Stripe checkouts before Cin7 confirmation.'
+    }),
+    defineField({
+      name: 'last_sync_time',
+      title: 'Last Cin7 Sync',
+      type: 'datetime',
+      readOnly: true,
+      description: 'The last time this products stock was updated from Cin7.'
     }),
     defineField({ 
       name: 'low_stock_alert', 

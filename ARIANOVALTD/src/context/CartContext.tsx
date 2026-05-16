@@ -9,6 +9,7 @@ export interface CartItem {
   type: 'wine' | 'event'
   imageUrl: string | null
   imageObj?: any
+  winery?: string
   quantity: number
 }
 

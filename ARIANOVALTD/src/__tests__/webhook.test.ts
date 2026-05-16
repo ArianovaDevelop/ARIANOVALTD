@@ -39,6 +39,7 @@ vi.mock('@/sanity/lib/client', () => {
           patch: mockPatch,
           commit: mockCommit
         }),
+        create: mockCreate,
         fetch: mockFetch
       })
     }
