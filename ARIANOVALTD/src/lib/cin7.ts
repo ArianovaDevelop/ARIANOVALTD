@@ -108,6 +108,7 @@ export interface Cin7PaymentPayload {
   Amount: number;
   DatePaid: string; // ISO 8601 Date
   Account: string; // Account Code of the bank/payment account
+  CurrencyRate?: number; // Usually 1.0 for local currency
 }
 
 // --- API Implementation ---

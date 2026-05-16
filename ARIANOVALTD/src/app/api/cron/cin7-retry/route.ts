@@ -87,7 +87,8 @@ export async function GET(req: Request) {
                 // Fix #6: Use Stripe's stored amountTotal as the source of truth
                 Amount: log.amountTotal ?? orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) ?? 0,
                 DatePaid: new Date().toISOString().split('.')[0],
-                Account: 'Stripe Clearing Account'
+                Account: '1200',
+                CurrencyRate: 1
               };
               await createSalesPayment(paymentPayload);
               await Logger.updateTransactionLog(log._id, {
@@ -124,7 +125,8 @@ export async function GET(req: Request) {
               ((orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
                 (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + charge.Price, 0) || 0)),
             DatePaid: new Date().toISOString().split('.')[0],
-            Account: 'Stripe Clearing Account'
+            Account: '1200',
+            CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);
         }

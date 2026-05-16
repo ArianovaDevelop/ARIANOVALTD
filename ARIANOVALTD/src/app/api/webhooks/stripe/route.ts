@@ -188,7 +188,8 @@ export async function POST(req: Request) {
             TaskID: saleId,
             Amount: (session.amount_total || 0) / 100,
             DatePaid: new Date().toISOString().split('.')[0], // Match Cin7's preferred format
-            Account: 'Stripe Clearing Account' 
+            Account: '1200', 
+            CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);
         }

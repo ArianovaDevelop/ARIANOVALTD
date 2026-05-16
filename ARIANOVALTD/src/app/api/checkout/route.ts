@@ -99,12 +99,12 @@ export async function POST(req: Request) {
     let session;
     try {
       const serializedCart = JSON.stringify(verifiedItems.map(i => ({
-        id: i._id,
-        type: i._type,
-        qty: i.quantity,
+        id: i.id,
+        type: i.type,
+        qty: i.qty,
         title: i.title,
         price: i.price,
-        sku: i.sku,   // Fix A: real SKU for Cin7 order lines
+        sku: i.sku,
       })));
 
       session = await stripe.checkout.sessions.create({
