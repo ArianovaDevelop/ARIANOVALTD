@@ -95,6 +95,13 @@ export const integrationLogType = defineType({
       type: 'datetime',
       readOnly: true,
     }),
+    defineField({
+      name: 'amountTotal',
+      title: 'Amount Total',
+      type: 'number',
+      description: 'Stripe amount_total in dollars (cents / 100) — used as source of truth in retry',
+      readOnly: true,
+    }),
   ],
   preview: {
     select: {
