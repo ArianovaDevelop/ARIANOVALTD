@@ -69,42 +69,42 @@ export async function GET(req: Request) {
         if (!orderPayload.CustomerID || !orderPayload.Order?.Lines?.length) {
           throw new Error(`Malformed payload for order ${log.orderNumber}: missing CustomerID or Order Lines.`);
         }
-        
+
         Logger.info(`[Janitor] Retrying Order: ${log.orderNumber} (Attempt ${log.retryCount + 1})`);
-        
+
         if (log.stripeSessionId) {
           // Pre-Flight Check: Does this order already exist in Cin7?
           const existingOrder = await checkSalesOrderExists(log.stripeSessionId);
-          
+
           if (existingOrder) {
             Logger.info(`[Janitor] Order ${log.orderNumber} already exists in Cin7 (SaleID: ${existingOrder.SaleID}).`);
-            
+
             if (log.syncState !== 'PAYMENT_COMPLETED') {
               // We need to complete the payment
               Logger.info(`[Janitor] Order exists but payment is incomplete. Executing Step 2: Payment.`);
               const paymentPayload: Cin7PaymentPayload = {
-                SaleID: existingOrder.SaleID,
+                TaskID: existingOrder.SaleID,
                 // Fix #6: Use Stripe's stored amountTotal as the source of truth
                 Amount: log.amountTotal ?? orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) ?? 0,
                 DatePaid: new Date().toISOString().split('.')[0],
                 Account: 'Stripe Clearing Account'
               };
               await createSalesPayment(paymentPayload);
-              await Logger.updateTransactionLog(log._id, { 
-                status: 'success', 
+              await Logger.updateTransactionLog(log._id, {
+                status: 'success',
                 syncState: 'PAYMENT_COMPLETED',
-                errorMessage: 'Recovered via pre-flight check (payment applied).' 
+                errorMessage: 'Recovered via pre-flight check (payment applied).'
               });
               results.push({ order: log.orderNumber, status: 'recovered_payment' });
               continue;
             } else {
               // Already fully complete
-              await Logger.updateTransactionLog(log._id, { 
-                status: 'success', 
-                errorMessage: 'Recovered via pre-flight check (already existed and paid).' 
+              await Logger.updateTransactionLog(log._id, {
+                status: 'success',
+                errorMessage: 'Recovered via pre-flight check (already existed and paid).'
               });
               results.push({ order: log.orderNumber, status: 'recovered_duplicate' });
-              continue; 
+              continue;
             }
           }
         }
@@ -112,17 +112,17 @@ export async function GET(req: Request) {
         // Execute Step 1: Create Sale
         const saleResponse = await createSalesOrder(orderPayload);
         const saleId = saleResponse.ID;
-        
+
         await Logger.updateTransactionLog(log._id, { syncState: 'SALE_CREATED' });
 
         // Execute Step 2: Create Payment
         if (saleId) {
           const paymentPayload: Cin7PaymentPayload = {
-            SaleID: saleId,
+            TaskID: saleId,
             // Fix #6: Use Stripe's stored amountTotal as the source of truth
-            Amount: log.amountTotal ?? 
-                    ((orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
-                    (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + charge.Price, 0) || 0)),
+            Amount: log.amountTotal ??
+              ((orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
+                (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + charge.Price, 0) || 0)),
             DatePaid: new Date().toISOString().split('.')[0],
             Account: 'Stripe Clearing Account'
           };
@@ -137,7 +137,7 @@ export async function GET(req: Request) {
 
       } catch (error: any) {
         Logger.error(`❌ [Janitor] Failed to recover Order: ${log.orderNumber}`, error);
-        
+
         // Update Sanity on Failure (increment retryCount)
         await Logger.updateTransactionLog(log._id, {
           incrementRetry: true,
