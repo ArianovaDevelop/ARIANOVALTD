@@ -274,6 +274,7 @@ export async function createSalesPayment(payload: Cin7PaymentPayload): Promise<a
 
 /**
  * Fetches stock availability for a specific SKU.
+ * @deprecated Use getLiveCin7Stock for checkout flows to handle multiple SKUs and proper error throwing.
  */
 export async function getProductStock(sku: string): Promise<Cin7ProductAvailability | null> {
   try {
@@ -291,4 +292,45 @@ export async function getProductStock(sku: string): Promise<Cin7ProductAvailabil
     console.error("Cin7 Stock Fetch Failed:", error);
     return null;
   }
+}
+
+/**
+ * Fetches live physical stock (StockOnHand) for multiple SKUs in parallel.
+ * This is used during checkout to eliminate ghost inventory.
+ * Throws if the API call fails to allow for 503 fallback.
+ */
+export async function getLiveCin7Stock(skus: string[]): Promise<Record<string, number>> {
+  const stockMap: Record<string, number> = {};
+  
+  // Unique SKUs only to avoid redundant API calls
+  const uniqueSkus = Array.from(new Set(skus.filter(Boolean)));
+  
+  if (uniqueSkus.length === 0) return stockMap;
+
+  // Fetch all SKUs in parallel. 
+  // Note: Cin7 Rate Limits might be an issue if we have dozens of SKUs, 
+  // but for a typical cart (1-10 items) this is the fastest way.
+  await Promise.all(uniqueSkus.map(async (sku) => {
+    const params = new URLSearchParams({ Sku: sku });
+    const response = await fetch(`${DEAR_API_URL}/ProductAvailability?${params.toString()}`, {
+      method: 'GET',
+      headers: getHeaders(),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Cin7 Stock Fetch Failed (${response.status}): ${errorText}`);
+    }
+
+    const data: Cin7ProductAvailabilityResponse = await response.json();
+    
+    // Sum StockOnHand across all locations for this SKU
+    const totalPhysical = data.ProductAvailabilityList
+      .filter(p => p.SKU === sku)
+      .reduce((sum, p) => sum + (p.StockOnHand || 0), 0);
+    
+    stockMap[sku] = totalPhysical;
+  }));
+
+  return stockMap;
 }

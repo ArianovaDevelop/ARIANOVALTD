@@ -213,6 +213,17 @@ export async function POST(req: Request) {
         // 5. Update to final success
         await Logger.updateTransactionLog(integrationLogId, { status: 'success', syncState: 'PAYMENT_COMPLETED' });
         Logger.info(`✅ [Success] Two-Step Sync completed for Cin7 Core!`, { orderNumber });
+
+        // 🎉 Notify Slack of Successful Sale
+        await Logger.notifySlack(
+          `🍷 *New Sale!* Order #${orderNumber} has been successfully synchronized to Cin7.`,
+          {
+            orderNumber,
+            customer: session.customer_details?.name || 'Arianova Customer',
+            amount: `$${((session.amount_total || 0) / 100).toFixed(2)}`,
+            items: cart.map((i: any) => `${i.qty}x ${i.title}`).join(', ')
+          }
+        );
       } catch (cin7Error: any) {
         Logger.error(`❌ [Error] Failed to push order ${sessionId} to Cin7`, cin7Error);
         

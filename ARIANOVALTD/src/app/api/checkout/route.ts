@@ -4,6 +4,7 @@ import { auth } from '@clerk/nextjs/server'
 import { client } from '@/sanity/lib/client'
 import { Logger } from '@/lib/logger'
 import { getAppUrl } from '@/lib/urls'
+import { getLiveCin7Stock } from '@/lib/cin7'
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: '2023-10-16' as any,
@@ -21,17 +22,35 @@ export async function POST(req: Request) {
     }
 
     const writeClient = client.withConfig({ token: process.env.SANITY_WRITE_TOKEN })
+    const wineIds = items.map((item: any) => item.id)
+
+    // 1. Initial Sanity fetch to get SKUs for the live check
+    const initialProducts = await writeClient.fetch(
+      `*[_type in ["wine", "event"] && _id in $wineIds] { _id, sku, title }`,
+      { wineIds }
+    )
+
+    // 2. Authoritative Live Stock Fetch (Outside loop to prevent rate limits)
+    let liveCin7Stock: Record<string, number> = {}
+    try {
+      const skus = initialProducts.map((p: any) => p.sku).filter(Boolean)
+      liveCin7Stock = await getLiveCin7Stock(skus)
+    } catch (cin7Err) {
+      Logger.error('Cin7 Live Stock Verification Failed', cin7Err);
+      return NextResponse.json({ 
+        error: 'Unable to verify live warehouse inventory. Please try again in a moment.' 
+      }, { status: 503 })
+    }
 
     let attempt = 0;
     const maxRetries = 3;
     let verifiedItems: any[] = [];
     
-    // 1. Optimistic Locking Retry Loop (Fetch -> Validate -> Patch)
+    // 3. Optimistic Locking Retry Loop (Fetch latest committed_stock -> Validate -> Patch)
     while (attempt < maxRetries) {
       try {
-        const wineIds = items.map((item: any) => item.id)
         const winesInDb = await writeClient.fetch(
-          `*[_type in ["wine", "event"] && _id in $wineIds] { _id, _type, physical_stock, committed_stock, price, title, sku, _rev }`,
+          `*[_type in ["wine", "event"] && _id in $wineIds] { _id, _type, committed_stock, price, title, sku, _rev }`,
           { wineIds }
         )
         const tx = writeClient.transaction()
@@ -43,7 +62,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: `Invalid product: ${item.title}` }, { status: 400 })
           }
           
-          const available = (dbWine.physical_stock || 0) - (dbWine.committed_stock || 0)
+          // Math: authoritative Cin7 Physical Stock - Sanity Committed Stock
+          const physicalStock = liveCin7Stock[dbWine.sku] || 0
+          const available = physicalStock - (dbWine.committed_stock || 0)
+          
           if (available < item.quantity) {
             return NextResponse.json({ 
               error: `Insufficient stock for ${item.title}. Only ${Math.max(0, available)} available.` 

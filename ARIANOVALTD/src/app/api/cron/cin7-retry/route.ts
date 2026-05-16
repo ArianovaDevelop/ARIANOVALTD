@@ -78,100 +78,92 @@ export async function GET(req: Request) {
 
         Logger.info(`[Janitor] Retrying Order: ${log.orderNumber} (Attempt ${log.retryCount + 1})`);
 
+        let currentSaleId = null;
+
+        // 1. Resolve SaleID (Pre-Flight or Existing State)
         if (log.stripeSessionId) {
-          // Pre-Flight Check: Does this order already exist in Cin7?
           const existingOrder = await checkSalesOrderExists(log.stripeSessionId);
-
           if (existingOrder) {
-            Logger.info(`[Janitor] Order ${log.orderNumber} already exists in Cin7 (SaleID: ${existingOrder.SaleID}).`);
-
-            if (log.syncState !== 'PAYMENT_COMPLETED') {
-              // We need to complete the order authorisation then invoice then payment
-              Logger.info(`[Janitor] Order exists but payment is incomplete. Executing Step 2: Auth Order + Invoice + Payment.`);
-              
-              // Ensure Order is authorised
-              await authoriseSalesOrder(existingOrder.SaleID, orderPayload.Order?.Lines);
-
-              // Ensure Invoice is authorised
-              await createSalesInvoice(existingOrder.SaleID, orderPayload.Order?.Lines);
-              await Logger.updateTransactionLog(log._id, { syncState: 'INVOICE_AUTHORISED' });
-
-              const paymentPayload: Cin7PaymentPayload = {
-                TaskID: existingOrder.SaleID,
-                // Fix #6: Use Stripe's stored amountTotal as the source of truth
-                Amount: log.amountTotal ?? orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) ?? 0,
-                DatePaid: new Date().toISOString().split('.')[0],
-                Account: '1199',
-                CurrencyRate: 1
-              };
-              await createSalesPayment(paymentPayload);
-              await Logger.updateTransactionLog(log._id, {
-                status: 'success',
-                syncState: 'PAYMENT_COMPLETED',
-                errorMessage: 'Recovered via pre-flight check (payment applied).'
-              });
-              results.push({ order: log.orderNumber, status: 'recovered_payment' });
-              continue;
-            } else {
-              // Already fully complete
-              await Logger.updateTransactionLog(log._id, {
-                status: 'success',
-                errorMessage: 'Recovered via pre-flight check (already existed and paid).'
-              });
-              results.push({ order: log.orderNumber, status: 'recovered_duplicate' });
-              continue;
-            }
+            currentSaleId = existingOrder.SaleID;
+            Logger.info(`[Janitor] Pre-flight found existing SaleID: ${currentSaleId}`);
           }
         }
 
-        // Execute Step 1: Create Sale
-        const saleResponse = await createSalesOrder(orderPayload);
-        const saleId = saleResponse.ID;
-
-        await Logger.updateTransactionLog(log._id, { syncState: 'SALE_CREATED' });
-        
-        // Execute Step 2: Authorise Order
-        if (saleId) {
-          await authoriseSalesOrder(saleId, orderPayload.Order?.Lines);
+        // 2. State Machine: Step 1 - Create Sale
+        if (!currentSaleId && !log.syncState) {
+          const saleResponse = await createSalesOrder(orderPayload);
+          currentSaleId = saleResponse.ID;
+          await Logger.updateTransactionLog(log._id, { syncState: 'SALE_CREATED' });
+          log.syncState = 'SALE_CREATED'; // Update local state for subsequent blocks
         }
 
-        // Execute Step 3: Authorise Invoice
-        if (saleId) {
-          await createSalesInvoice(saleId, orderPayload.Order?.Lines);
+        if (!currentSaleId) {
+          throw new Error(`Failed to resolve SaleID for order ${log.orderNumber}`);
+        }
+
+        // 3. State Machine: Step 2 - Authorise Order
+        if (!log.syncState || log.syncState === 'SALE_CREATED') {
+          await authoriseSalesOrder(currentSaleId, orderPayload.Order?.Lines);
+          await Logger.updateTransactionLog(log._id, { syncState: 'ORDER_AUTHORISED' });
+          log.syncState = 'ORDER_AUTHORISED';
+        }
+
+        // 4. State Machine: Step 3 - Authorise Invoice
+        if (log.syncState === 'ORDER_AUTHORISED') {
+          await createSalesInvoice(currentSaleId, orderPayload.Order?.Lines);
           await Logger.updateTransactionLog(log._id, { syncState: 'INVOICE_AUTHORISED' });
+          log.syncState = 'INVOICE_AUTHORISED';
         }
 
-        // Execute Step 4: Create Payment
-        if (saleId) {
+        // 5. State Machine: Step 4 - Create Payment
+        if (log.syncState === 'INVOICE_AUTHORISED') {
           const paymentPayload: Cin7PaymentPayload = {
-            TaskID: saleId,
-            // Fix #6: Use Stripe's stored amountTotal as the source of truth
-            Amount: log.amountTotal ??
-              ((orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
-                (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + charge.Price, 0) || 0)),
+            TaskID: currentSaleId,
+            Amount: log.amountTotal ?? (
+              (orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
+              (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + (charge.Price * charge.Quantity), 0) || 0)
+            ),
             DatePaid: new Date().toISOString().split('.')[0],
             Account: '1199',
             CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);
+          await Logger.updateTransactionLog(log._id, { status: 'success', syncState: 'PAYMENT_COMPLETED' });
+          log.syncState = 'PAYMENT_COMPLETED';
         }
 
-        // Update Sanity on Success
-        await Logger.updateTransactionLog(log._id, { status: 'success', syncState: 'PAYMENT_COMPLETED' });
-
-        results.push({ order: log.orderNumber, status: 'recovered' });
+        // 6. Final Status Sync: Ensure Sanity matches the completion state
+        if (log.syncState === 'PAYMENT_COMPLETED') {
+          await Logger.updateTransactionLog(log._id, { status: 'success' });
+          results.push({ order: log.orderNumber, status: 'recovered' });
+        }
         Logger.info(`✅ [Janitor] Recovered Order: ${log.orderNumber}`);
 
       } catch (error: any) {
         Logger.error(`❌ [Janitor] Failed to recover Order: ${log.orderNumber}`, error);
 
+        const newRetryCount = (log.retryCount || 0) + 1;
+
         // Update Sanity on Failure (increment retryCount)
         await Logger.updateTransactionLog(log._id, {
           incrementRetry: true,
-          errorMessage: `Retry ${log.retryCount + 1} Failed: ${error.message}`
+          errorMessage: `Retry ${newRetryCount} Failed: ${error.message}`
         });
 
-        results.push({ order: log.orderNumber, status: 'failed', retryCount: log.retryCount + 1 });
+        // Slack Alert on Permanent Failure
+        if (newRetryCount >= MAX_RETRIES) {
+          await Logger.notifySlack(
+            `🚨 *Arianova Alert:* Janitor Cron failed to recover Order ${log.orderNumber} after ${MAX_RETRIES} attempts. Manual Cin7 intervention required.`,
+            {
+              orderNumber: log.orderNumber,
+              lastError: error.message,
+              syncState: log.syncState,
+              stripeSessionId: log.stripeSessionId
+            }
+          );
+        }
+
+        results.push({ order: log.orderNumber, status: 'failed', retryCount: newRetryCount });
       }
     }
 

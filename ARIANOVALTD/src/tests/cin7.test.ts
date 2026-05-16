@@ -6,6 +6,8 @@ global.fetch = vi.fn();
 describe('Cin7 API Client Logic', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.CIN7_ACCOUNT_ID = 'test_account';
+    process.env.CIN7_API_KEY = 'test_key';
   });
 
   describe('checkSalesOrderExists', () => {

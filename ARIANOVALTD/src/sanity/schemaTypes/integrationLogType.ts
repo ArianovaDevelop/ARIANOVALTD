@@ -47,6 +47,8 @@ export const integrationLogType = defineType({
       options: {
         list: [
           { title: 'Sale Created', value: 'SALE_CREATED' },
+          { title: 'Order Authorised', value: 'ORDER_AUTHORISED' },
+          { title: 'Invoice Authorised', value: 'INVOICE_AUTHORISED' },
           { title: 'Payment Completed', value: 'PAYMENT_COMPLETED' },
         ],
       },

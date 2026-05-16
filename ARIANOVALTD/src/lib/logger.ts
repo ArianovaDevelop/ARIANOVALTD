@@ -2,7 +2,7 @@ import { writeClient } from '@/sanity/lib/write-client';
 
 export type LogStatus = 'success' | 'failed' | 'pending';
 export type LogService = 'cin7' | 'stripe' | 'system' | 'resend';
-export type SyncState = 'SALE_CREATED' | 'INVOICE_AUTHORISED' | 'PAYMENT_COMPLETED' | 'CREDIT_NOTE_CREATED';
+export type SyncState = 'SALE_CREATED' | 'ORDER_AUTHORISED' | 'INVOICE_AUTHORISED' | 'PAYMENT_COMPLETED' | 'CREDIT_NOTE_CREATED';
 
 export interface TransactionLogPayload {
   orderNumber: string;
@@ -87,6 +87,39 @@ export class Logger {
       this.info(`Updated Transaction Log [${logId}]`, update);
     } catch (err: any) {
       this.error(`Failed to update Sanity Transaction Log [${logId}]`, err);
+    }
+  }
+
+  /**
+   * Sends a Slack notification for critical failures.
+   * Does NOT throw on failure to avoid crashing the main process.
+   */
+  static async notifySlack(message: string, context?: any) {
+    const webhookUrl = process.env.SLACK_WEBHOOK_URL;
+    if (!webhookUrl) {
+      this.error('Slack Webhook URL is not configured. Skipping notification.');
+      return;
+    }
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: message,
+          attachments: context ? [{
+            color: '#ff0000',
+            fields: Object.entries(context).map(([key, value]) => ({
+              title: key,
+              value: typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value),
+              short: false
+            }))
+          }] : []
+        }),
+      });
+      this.info(`Slack notification sent: ${message}`);
+    } catch (err) {
+      this.error(`Failed to send Slack notification`, err);
     }
   }
 }
