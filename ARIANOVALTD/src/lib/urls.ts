@@ -11,3 +11,4 @@ export function getAppUrl() {
 }
 // Triggering fresh Vercel build after repo move
 
+// Final trigger for Vercel branch recognition
