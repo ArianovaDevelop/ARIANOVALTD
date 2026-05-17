@@ -30,6 +30,14 @@ export class Logger {
   }
 
   /**
+   * System-level warning log
+   * Captures non-critical issues such as missing optional env vars or unexpected fallbacks.
+   */
+  static warn(message: string, context?: Record<string, unknown>) {
+    console.warn(`[WARN] ${message}`, context ? JSON.stringify(context) : '');
+  }
+
+  /**
    * System-level error log (Sentry / Vercel)
    * Captures unhandled exceptions or critical path failures.
    */

@@ -104,7 +104,7 @@ export interface Cin7ProductAvailabilityResponse {
 export interface Cin7PaymentPayload {
   TaskID: string; // The Sale ID from the previous step
   Type?: 'PREPAYMENT' | 'PAYMENT' | 'REFUND';
-  Reference?: string;
+  Reference?: string; // External reference — used for Stripe session ID audit trail
   Amount: number;
   DatePaid: string; // ISO 8601 Date
   Account: string; // Account Code of the bank/payment account

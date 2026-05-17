@@ -200,11 +200,17 @@ export async function POST(req: Request) {
 
         // 5. Execute Step 3: Create Payment
         if (saleId) {
+          // Resolve the clearing account from env — fall back gracefully with a warning
+          const stripeAccount = process.env.CIN7_STRIPE_ACCOUNT_NAME;
+          if (!stripeAccount) {
+            Logger.warn(`[Cin7] CIN7_STRIPE_ACCOUNT_NAME is not set. Falling back to default account "1201". Set this env var to map Stripe payments to the correct Xero clearing account.`);
+          }
           const paymentPayload: Cin7PaymentPayload = {
             TaskID: saleId,
-            Amount: (session.amount_total || 0) / 100,
-            DatePaid: new Date().toISOString().split('.')[0], // Match Cin7's preferred format
-            Account: '1199', 
+            Reference: session.id,                              // Stripe session ID for audit trail
+            Amount: (session.amount_total || 0) / 100,          // Gross amount — no fee deductions
+            DatePaid: new Date(session.created * 1000).toISOString().split('.')[0], // Actual Stripe payment timestamp
+            Account: stripeAccount ?? '1201',                   // Xero clearing account
             CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);
