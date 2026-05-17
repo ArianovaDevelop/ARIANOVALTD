@@ -42,11 +42,14 @@ next-env.d.ts
 
 # Local Administration & Data Population Scripts
 /scripts/
-rename.js
-test-suite-analysis.txt
-tmp
+/tmp/
 /_assets_backup/
 /.arianova/
 # clerk configuration (can include secrets)
 /.clerk/
 /scratch/
+
+# Sensitive Business Proposals & Client Contracts
+/10_Documents/
+/10_documents/
+

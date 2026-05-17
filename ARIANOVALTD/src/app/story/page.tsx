@@ -64,7 +64,7 @@ export default function StoryPage() {
             <FadeInView direction="up">
               <div 
                 className="w-full aspect-[3/4] bg-cover bg-top shadow-2xl grayscale-[0.3]"
-                style={{ backgroundImage: "url('/images/MikeUpscaled.png')" }}
+                style={{ backgroundImage: "url('/images/MikeUpscaled.jpg')" }}
               />
             </FadeInView>
             <FadeInView direction="left" delay={0.2}>
