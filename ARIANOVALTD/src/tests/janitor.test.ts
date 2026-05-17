@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { GET } from '@/app/api/cron/cin7-retry/route';
 import { writeClient } from '@/sanity/lib/write-client';
 import { createSalesOrder, createSalesPayment, createSalesInvoice, authoriseSalesOrder, checkSalesOrderExists } from '@/lib/cin7';
+import { Logger } from '@/lib/logger';
 
 // 1. Mock Sanity Write Client
 const mPatch = {
@@ -36,6 +37,13 @@ describe.sequential('Janitor Cron Verification', () => {
     mPatch.commit.mockResolvedValue({ success: true });
     mFetch = writeClient.fetch as ReturnType<typeof vi.fn>;
     process.env.CRON_SECRET = 'test_secret';
+
+    // Suppress expected console noise from intentional error scenarios.
+    // These Logger calls are correct production behaviour — we just don't
+    // need them polluting the test output.
+    vi.spyOn(Logger, 'info').mockImplementation(() => {});
+    vi.spyOn(Logger, 'error').mockImplementation(() => {});
+    vi.spyOn(Logger, 'warn').mockImplementation(() => {});
   });
 
   const mockPayload = JSON.stringify({ 
@@ -208,6 +216,70 @@ describe.sequential('Janitor Cron Verification', () => {
     // Check that success was marked
     expect(mPatch.set).toHaveBeenCalledWith(expect.objectContaining({ status: 'success' }));
     expect(mPatch.set).toHaveBeenCalledWith(expect.objectContaining({ syncState: 'PAYMENT_COMPLETED' }));
+  });
+  it('Alert Threshold: notifySlack is called when retryCount reaches MAX_RETRIES (5)', async () => {
+    // retryCount is 4 — this is the 5th attempt (newRetryCount = 5 = MAX_RETRIES)
+    mFetch.mockResolvedValueOnce([{
+      _id: 'log_alert',
+      orderNumber: 'ORD-ALERT',
+      service: 'cin7',
+      status: 'failed',
+      payload: mockPayload,
+      retryCount: 4,
+    }]);
+
+    (checkSalesOrderExists as any).mockResolvedValueOnce(false);
+    (createSalesOrder as any).mockRejectedValueOnce(new Error('Cin7 permanently down'));
+
+    const notifySlackSpy = vi.spyOn(Logger, 'notifySlack').mockResolvedValue(undefined);
+
+    const req = new Request('http://localhost/api/cron/cin7-retry', {
+      headers: { authorization: 'Bearer test_secret' },
+    });
+    const response = await GET(req);
+    const body = await response.json();
+
+    // Cron must still return 200 (per-order failure is handled gracefully)
+    expect(response.status).toBe(200);
+    expect(body.results[0].retryCount).toBe(5);
+
+    // Slack alert must have fired exactly once with order details
+    expect(notifySlackSpy).toHaveBeenCalledTimes(1);
+    expect(notifySlackSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ORD-ALERT'),
+      expect.objectContaining({ orderNumber: 'ORD-ALERT' })
+    );
+  });
+
+  it('Thread Protector: cron survives and returns 200 if Slack webhook fetch throws', async () => {
+    mFetch.mockResolvedValueOnce([{
+      _id: 'log_slack_fail',
+      orderNumber: 'ORD-SLACK',
+      service: 'cin7',
+      status: 'failed',
+      payload: mockPayload,
+      retryCount: 4,
+    }]);
+
+    (checkSalesOrderExists as any).mockResolvedValueOnce(false);
+    (createSalesOrder as any).mockRejectedValueOnce(new Error('Cin7 down'));
+
+    // Slack itself rejects — Logger.notifySlack must swallow this internally
+    // The cron’s per-order catch handles this; outer GET must still return 200
+    const notifySlackSpy = vi.spyOn(Logger, 'notifySlack').mockRejectedValueOnce(
+      new Error('Slack endpoint unreachable')
+    );
+
+    const req = new Request('http://localhost/api/cron/cin7-retry', {
+      headers: { authorization: 'Bearer test_secret' },
+    });
+
+    const response = await GET(req);
+
+    // Slack rejection must not bubble up to crash the cron handler
+    expect(response.status).toBe(200);
+
+    notifySlackSpy.mockRestore();
   });
 });
 

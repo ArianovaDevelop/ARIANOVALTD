@@ -102,6 +102,14 @@ export const integrationLogType = defineType({
       description: 'Stripe amount_total in dollars (cents / 100) — used as source of truth in retry',
       readOnly: true,
     }),
+    defineField({
+      name: 'retryLog',
+      title: 'Retry Log',
+      type: 'array',
+      of: [{ type: 'string' }],
+      readOnly: true,
+      description: 'Append-only log of each retry attempt by the Janitor Cron. Format: "[ISO timestamp] Attempt #N: <error message>".',
+    }),
   ],
   preview: {
     select: {

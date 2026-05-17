@@ -152,15 +152,19 @@ export async function GET(req: Request) {
 
         // Slack Alert on Permanent Failure
         if (newRetryCount >= MAX_RETRIES) {
-          await Logger.notifySlack(
-            `🚨 *Arianova Alert:* Janitor Cron failed to recover Order ${log.orderNumber} after ${MAX_RETRIES} attempts. Manual Cin7 intervention required.`,
-            {
-              orderNumber: log.orderNumber,
-              lastError: error.message,
-              syncState: log.syncState,
-              stripeSessionId: log.stripeSessionId
-            }
-          );
+          try {
+            await Logger.notifySlack(
+              `🚨 *Arianova Alert:* Janitor Cron failed to recover Order ${log.orderNumber} after ${MAX_RETRIES} attempts. Manual Cin7 intervention required.`,
+              {
+                orderNumber: log.orderNumber,
+                lastError: error.message,
+                syncState: log.syncState,
+                stripeSessionId: log.stripeSessionId
+              }
+            );
+          } catch (slackErr) {
+            Logger.warn(`[Janitor] Slack notification failed for Order ${log.orderNumber}. Continuing.`);
+          }
         }
 
         results.push({ order: log.orderNumber, status: 'failed', retryCount: newRetryCount });

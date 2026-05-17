@@ -80,7 +80,7 @@ export class Logger {
    */
   static async updateTransactionLog(
     logId: string, 
-    update: { status?: LogStatus; syncState?: SyncState; errorMessage?: string; incrementRetry?: boolean; payload?: any }
+    update: { status?: LogStatus; syncState?: SyncState; errorMessage?: string; incrementRetry?: boolean; payload?: any; retryLogEntry?: string }
   ) {
     try {
       let patch = writeClient.patch(logId);
@@ -90,6 +90,10 @@ export class Logger {
       if (update.errorMessage) patch = patch.set({ errorMessage: update.errorMessage });
       if (update.payload) patch = patch.set({ payload: JSON.stringify(update.payload, null, 2) });
       if (update.incrementRetry) patch = patch.inc({ retryCount: 1 });
+      if (update.retryLogEntry) {
+        const entry = `[${new Date().toISOString()}] ${update.retryLogEntry}`;
+        patch = patch.setIfMissing({ retryLog: [] }).append('retryLog', [entry]);
+      }
 
       await patch.commit();
       this.info(`Updated Transaction Log [${logId}]`, update);

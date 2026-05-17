@@ -8,7 +8,22 @@ export const wineType = defineType({
     // Marketing & Display
     defineField({ name: 'title', title: 'Title', type: 'string', validation: (Rule) => Rule.required() }),
     defineField({ name: 'slug', title: 'URL Slug', type: 'slug', options: { source: 'title' } }),
-    defineField({ name: 'sku', title: 'SKU', type: 'string', validation: (Rule) => Rule.required() }),
+    defineField({
+      name: 'sku',
+      title: 'SKU',
+      type: 'string',
+      validation: (Rule) => Rule.required().custom(async (sku, context) => {
+        if (!sku) return true // required() handles the empty case
+        const { document, getClient } = context as any
+        const client = getClient({ apiVersion: '2024-03-22' })
+        const existingId = await client.fetch(
+          `*[_type == "wine" && sku == $sku && _id != $id][0]._id`,
+          { sku, id: document._id }
+        )
+        return existingId ? `SKU "${sku}" is already used by another wine. SKUs must be unique across the catalog.` : true
+      }),
+      description: 'Must exactly match the SKU in Cin7 Core. Must be unique across all wines.',
+    }),
     defineField({ name: 'winery', title: 'Winery', type: 'string', description: 'Originating estate (e.g., Tenute dello Jato)' }),
     defineField({ name: 'vintage', title: 'Vintage', type: 'number' }),
     defineField({ name: 'grapeVarieties', title: 'Grape Varieties', type: 'string' }),
@@ -38,7 +53,8 @@ export const wineType = defineType({
       title: 'Committed Stock', 
       type: 'number', 
       initialValue: 0,
-      description: 'Soft locks managed by Stripe checkouts before Cin7 confirmation.'
+      readOnly: true,
+      description: '⚠️ SYSTEM MANAGED — Do not edit. Soft locks managed automatically by the Stripe Checkout API to prevent ghost inventory. Decremented on checkout, released on session expiry, zeroed on Cin7 confirmation.'
     }),
     defineField({
       name: 'last_sync_time',

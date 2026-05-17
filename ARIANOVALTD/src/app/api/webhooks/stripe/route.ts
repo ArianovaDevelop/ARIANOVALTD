@@ -187,7 +187,7 @@ export async function POST(req: Request) {
         // 4. NEW STEP A: Authorise Order
         if (saleId) {
           await authoriseSalesOrder(saleId, cin7Payload.Order?.Lines);
-          await Logger.updateTransactionLog(integrationLogId, { syncState: 'SALE_CREATED' }); // Still same state but confirmed
+          await Logger.updateTransactionLog(integrationLogId, { syncState: 'ORDER_AUTHORISED' });
           Logger.info(`[Step 2] Order authorised in Cin7 Core!`, { orderNumber });
         }
 
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
             TaskID: saleId,
             Reference: session.id,                              // Stripe session ID for audit trail
             Amount: (session.amount_total || 0) / 100,          // Gross amount — no fee deductions
-            DatePaid: new Date(session.created * 1000).toISOString().split('.')[0], // Actual Stripe payment timestamp
+            DatePaid: new Date(session.created * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z'), // Actual Stripe payment timestamp — strips ms, preserves Z UTC indicator
             Account: stripeAccount ?? '1201',                   // Xero clearing account
             CurrencyRate: 1
           };
