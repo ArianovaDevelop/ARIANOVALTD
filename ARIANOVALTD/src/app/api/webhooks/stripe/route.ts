@@ -152,7 +152,7 @@ export async function POST(req: Request) {
             Country: session.customer_details?.address?.country || 'NZ',
             Postcode: session.customer_details?.address?.postal_code || '0000',
           },
-          CustomerReference: sessionId, // Our idempotency/correlation key
+          CustomerReference: orderNumber, // The beautiful, human-readable 8-char ID for Sanity & Xero correlation
           Location: process.env.CIN7_DEFAULT_LOCATION || 'Main Warehouse',
           SaleType: 'Simple',
           Order: {

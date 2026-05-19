@@ -82,6 +82,7 @@ Real customers will **not** receive receipt emails on free tier.
 ### Cin7
 - [ ] Confirm `Main Warehouse` location is where all stock lives
 - [ ] Confirm all wine products have correct SKUs matching Sanity `sku` field
+- [ ] **Configure Tax Invoices:** Navigate to Cin7 Settings → Document Templates and ensure the system is configured to automatically email the Tax Invoice PDF to the customer upon Invoice Authorization (B2B Requirement).
 - [ ] Run `npm run stock:sync` one final time to baseline Sanity stock from Cin7
 - [ ] **Reset/Zero Test Stock (If Seeding Fresh)**: If you need to clear test inventory counts from Cin7 before going live:
   1. Navigate to **Inventory → Stocktake** in Cin7 Core dashboard and click **New Stocktake**.
