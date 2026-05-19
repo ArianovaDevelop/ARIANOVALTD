@@ -214,7 +214,7 @@ export async function POST(req: Request) {
           }
           const paymentPayload: Cin7PaymentPayload = {
             TaskID: saleId,
-            Reference: session.id,                              // Stripe session ID for audit trail
+            Reference: session.id.substring(0, 50),             // Truncate to 50 chars to avoid Cin7 limit
             Amount: (session.amount_total || 0) / 100,          // Gross amount — no fee deductions
             DatePaid: new Date(session.created * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z'), // Actual Stripe payment timestamp — strips ms, preserves Z UTC indicator
             Account: stripeAccount ?? '1201',                   // Xero clearing account
