@@ -56,7 +56,7 @@ export default function OnboardingFlow() {
           </p>
         </div>
 
-        <div className="bg-white border border-brand-border/10 rounded-sm shadow-xl p-8 min-h-[420px] flex flex-col relative overflow-hidden">
+        <div className="bg-brand-surface border border-brand-border/20 rounded-sm shadow-xl p-8 min-h-[420px] flex flex-col relative overflow-hidden">
           <AnimatePresence mode="wait">
             
             {step === 1 && (
@@ -102,7 +102,7 @@ export default function OnboardingFlow() {
                   <button
                     disabled={preferences.length === 0}
                     onClick={() => setStep(2)}
-                    className="w-full py-4 tracking-[0.2em] text-xs font-bold uppercase transition-colors rounded-sm shadow-md bg-brand-surface text-brand-foreground hover:bg-brand-accent/80 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-4 tracking-[0.2em] text-xs font-bold uppercase transition-all rounded-sm shadow-md border border-brand-accent/50 text-brand-foreground hover:bg-brand-accent hover:text-brand-bg hover:border-brand-accent disabled:opacity-30 disabled:cursor-not-allowed"
                   >
                     Continue
                   </button>
@@ -152,14 +152,14 @@ export default function OnboardingFlow() {
                 <div className="flex gap-4 pt-8 mt-4">
                   <button
                     onClick={() => setStep(1)}
-                    className="px-6 py-4 tracking-[0.2em] text-xs font-bold uppercase transition-colors rounded-sm border border-brand-border/20 text-brand-foreground hover:bg-brand-surface/5"
+                    className="px-6 py-4 tracking-[0.2em] text-xs font-bold uppercase transition-all rounded-sm border border-brand-border/30 text-brand-foreground/70 hover:border-brand-accent/50 hover:text-brand-foreground"
                   >
                     Back
                   </button>
                   <button
                     disabled={!frequency || isSubmitting}
                     onClick={handleComplete}
-                    className="flex-1 py-4 tracking-[0.2em] text-xs font-bold uppercase transition-colors rounded-sm shadow-md bg-brand-surface text-brand-foreground hover:bg-brand-accent/80 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center"
+                    className="flex-1 py-4 tracking-[0.2em] text-xs font-bold uppercase transition-all rounded-sm shadow-md border border-brand-accent/50 text-brand-foreground hover:bg-brand-accent hover:text-brand-bg hover:border-brand-accent disabled:opacity-30 disabled:cursor-not-allowed flex justify-center items-center"
                   >
                     {isSubmitting ? "Finalizing..." : "Secure Dossier"}
                   </button>
