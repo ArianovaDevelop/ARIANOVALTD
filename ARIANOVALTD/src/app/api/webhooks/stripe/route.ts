@@ -91,15 +91,22 @@ export async function POST(req: Request) {
 
         // Determine if it's a wine or an event for the Order Reference
         const isWine = item.type === 'wine';
+        const cleanRefId = item.id.replace('drafts.', '');
         
-        sanityOrderItems.push({
+        const orderItem: any = {
           _key: Math.random().toString(36).substring(7),
           _type: 'orderItem',
-          wine: isWine ? { _type: 'reference', _ref: item.id } : undefined,
-          event: !isWine ? { _type: 'reference', _ref: item.id } : undefined,
           quantity: item.qty,
           priceAtPurchase: item.price,
-        })
+        };
+
+        if (isWine) {
+          orderItem.wine = { _type: 'reference', _ref: cleanRefId };
+        } else {
+          orderItem.event = { _type: 'reference', _ref: cleanRefId };
+        }
+        
+        sanityOrderItems.push(orderItem)
         
         emailItems.push({
           title: item.title,

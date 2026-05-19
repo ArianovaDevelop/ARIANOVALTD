@@ -45,7 +45,21 @@ export const orderType = defineType({
               initialValue: 0,
               description: 'Increment this manually at the entrance for event check-ins.'
             }
-          ]
+          ],
+          preview: {
+            select: {
+              wineTitle: 'wine.title',
+              eventTitle: 'event.title',
+              quantity: 'quantity'
+            },
+            prepare(selection: any) {
+              const { wineTitle, eventTitle, quantity } = selection
+              const title = wineTitle || eventTitle || 'Unknown Item'
+              return {
+                title: `${quantity}x ${title}`
+              }
+            }
+          }
         }
       ]
     }),
