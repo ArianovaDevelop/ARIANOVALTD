@@ -17,6 +17,15 @@ vi.mock('@/sanity/lib/client', () => ({
   client: { fetch: vi.fn().mockResolvedValue(null) },
 }));
 
+// ─── Next.js Server Mock (handles after API synchronously during tests) ───────
+vi.mock('next/server', async (importOriginal) => {
+  const original = await importOriginal<typeof import('next/server')>();
+  return {
+    ...original,
+    after: vi.fn((fn) => fn()),
+  };
+});
+
 // Grab the mock after vi.mock hoisting so we can override per-test
 import { client as sanityReadClient } from '@/sanity/lib/client';
 const mClientFetch = () => sanityReadClient.fetch as ReturnType<typeof vi.fn>;
@@ -149,6 +158,7 @@ describe('Stripe Webhook Handler', () => {
     });
 
     await POST(makeRequest());
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Pending log must be created with status:'pending'
     expect(Logger.createTransactionLog).toHaveBeenCalledWith(
@@ -171,6 +181,7 @@ describe('Stripe Webhook Handler', () => {
     });
 
     await POST(makeRequest());
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     // Amount must be cents / 100 = $150.00
     expect(createSalesPayment).toHaveBeenCalledWith(
@@ -191,6 +202,7 @@ describe('Stripe Webhook Handler', () => {
     });
 
     await POST(makeRequest());
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(createSalesPayment).toHaveBeenCalledWith(
       expect.objectContaining({ Account: '1201' })
@@ -210,6 +222,7 @@ describe('Stripe Webhook Handler', () => {
     });
 
     const res = await POST(makeRequest());
+    await new Promise(resolve => setTimeout(resolve, 10));
 
     expect(res.status).toBe(200);
 
@@ -224,6 +237,9 @@ describe('Stripe Webhook Handler', () => {
 
     // All Cin7 steps must have executed
     expect(createSalesOrder).toHaveBeenCalledTimes(1);
+    expect(createSalesOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ ExternalID: MOCK_COMPLETED_SESSION.id })
+    );
     expect(authoriseSalesOrder).toHaveBeenCalledTimes(1);
     expect(createSalesInvoice).toHaveBeenCalledTimes(1);
     expect(createSalesPayment).toHaveBeenCalledTimes(1);

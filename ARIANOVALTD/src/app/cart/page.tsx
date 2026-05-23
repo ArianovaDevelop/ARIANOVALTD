@@ -12,11 +12,29 @@ import { urlFor } from "@/sanity/lib/image"
 export default function CartPage() {
   const { cart, removeFromCart, updateQuantity, totalPrice, isHydrated } = useCart()
   const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const [isAdultConfirmed, setIsAdultConfirmed] = useState(false)
   const router = useRouter()
 
   if (!isHydrated) return null // Prevent hydration mismatch while loading localStorage
 
+  const hasWine = cart.some(item => item.type === 'wine')
+  const totalWineQuantity = cart.reduce((total, item) => item.type === 'wine' ? total + item.quantity : total, 0)
+
   const handleCheckout = async () => {
+    if (totalWineQuantity > 0 && totalWineQuantity < 6) {
+      toast.error('Minimum Allocation Not Met', {
+        description: 'A minimum of 6 bottles is required to proceed with a wine order.'
+      })
+      return
+    }
+
+    if (hasWine && !isAdultConfirmed) {
+      toast.error('Age Verification Required', {
+        description: 'Please confirm you are 18 years of age or older to proceed.'
+      })
+      return
+    }
+
     setIsCheckingOut(true)
     try {
       const res = await fetch("/api/checkout", {
@@ -172,10 +190,25 @@ export default function CartPage() {
                 <span className="font-serif text-3xl text-brand-bg font-semibold">${(totalPrice / 100).toFixed(2)}</span>
               </div>
 
+              {hasWine && (
+                <div className="mb-6 flex items-start gap-3 bg-brand-bg/5 p-4 rounded-sm border border-brand-bg/10">
+                  <input 
+                    type="checkbox" 
+                    id="age-gate" 
+                    checked={isAdultConfirmed}
+                    onChange={(e) => setIsAdultConfirmed(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-brand-bg bg-white border-brand-bg/20 rounded-sm cursor-pointer flex-shrink-0"
+                  />
+                  <label htmlFor="age-gate" className="text-xs font-semibold tracking-wide text-brand-bg/80 leading-relaxed cursor-pointer select-none">
+                    I confirm that I am 18 years of age or older, and understand that identification may be required upon delivery.
+                  </label>
+                </div>
+              )}
+
               <button
                 onClick={handleCheckout}
                 disabled={isCheckingOut}
-                className="w-full py-5 tracking-[0.2em] text-xs font-bold uppercase transition-all rounded-sm shadow-md bg-brand-bg text-brand-foreground hover:bg-brand-accent hover:text-brand-bg hover:shadow-lg disabled:opacity-70 flex justify-center items-center gap-3"
+                className="w-full py-5 tracking-[0.2em] text-xs font-bold uppercase transition-all rounded-sm shadow-md bg-brand-bg text-brand-foreground hover:bg-brand-accent hover:text-brand-bg hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-3"
               >
                 {isCheckingOut ? (
                   <>

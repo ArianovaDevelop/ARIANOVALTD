@@ -30,7 +30,12 @@ export async function POST(req: Request) {
   const wh = new Webhook(WEBHOOK_SECRET)
   let evt: WebhookEvent
 
-  // Verify the payload using Svix
+  // ============================================================================
+  // SECURITY LAYER: SVIX PAYLOAD VERIFICATION
+  // ============================================================================
+  // Clerk uses Svix to sign their webhooks. We must cryptographically verify that
+  // the incoming request actually came from Clerk, otherwise malicious actors could
+  // forge account creation requests and hijack user profiles.
   try {
     evt = wh.verify(body, {
       'svix-id': svix_id,
@@ -48,12 +53,21 @@ export async function POST(req: Request) {
     token: process.env.SANITY_WRITE_TOKEN,
   })
 
-  // --- 1. HANDLE USER CREATION & UPDATES ---
+  // ============================================================================
+  // IDENTITY SYNCHRONIZATION: CLERK -> SANITY
+  // ============================================================================
+  // When a user signs up on the frontend via Clerk, we immediately catch that event
+  // here and replicate the user inside our Sanity CMS as a `customer` document.
+  // This allows the admin team to view orders attached natively to the user profile
+  // inside the Sanity Studio dashboard without ever needing to log into Clerk.
   if (evt.type === 'user.created' || evt.type === 'user.updated') {
     const { id: clerkId, email_addresses, first_name, last_name } = evt.data
     const primaryEmail = email_addresses?.[0]?.email_address || ''
 
-    // Logic: 1. Try first/last name 2. Try email prefix 3. Final fallback
+    // --- SMART NAME RESOLUTION ---
+    // Users often sign up with just an email or a social login that doesn't provide
+    // a clean First/Last name. We run a cascade of fallbacks to ensure every customer
+    // gets a beautifully formatted name in the CMS (e.g. "Antonio" instead of "antonio_35").
     let fullName = [first_name, last_name].filter(Boolean).join(' ').trim()
     
     if (!fullName && primaryEmail) {
@@ -71,6 +85,9 @@ export async function POST(req: Request) {
     if (!fullName) fullName = 'Anonymous Connoisseur'
 
     try {
+      // --- UPSERT LOGIC ---
+      // 1. `createIfNotExists`: Initializes the profile safely if this is a new signup.
+      // 2. `patch`: Overwrites the name/email if the user is just updating their Clerk profile.
       await writeClient.createIfNotExists({
         _id: `customer-${clerkId}`,
         _type: 'customer',

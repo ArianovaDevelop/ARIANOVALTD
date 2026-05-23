@@ -11,10 +11,28 @@ import { urlFor } from "@/sanity/lib/image"
 export default function CartSidebar() {
   const { cart, removeFromCart, updateQuantity, totalPrice, isCartOpen, closeCart, isHydrated } = useCart()
   const [isCheckingOut, setIsCheckingOut] = useState(false)
+  const [isAdultConfirmed, setIsAdultConfirmed] = useState(false)
 
   if (!isHydrated) return null
 
+  const hasWine = cart.some(item => item.type === 'wine')
+  const totalWineQuantity = cart.reduce((total, item) => item.type === 'wine' ? total + item.quantity : total, 0)
+
   const handleCheckout = async () => {
+    if (totalWineQuantity > 0 && totalWineQuantity < 6) {
+      toast.error('Minimum Allocation Not Met', {
+        description: 'A minimum of 6 bottles is required to proceed with a wine order.'
+      })
+      return
+    }
+
+    if (hasWine && !isAdultConfirmed) {
+      toast.error('Age Verification Required', {
+        description: 'Please confirm you are 18 years of age or older to proceed.'
+      })
+      return
+    }
+
     setIsCheckingOut(true)
     try {
       const res = await fetch("/api/checkout", {
@@ -165,11 +183,27 @@ export default function CartSidebar() {
                   <span className="font-serif text-lg text-brand-bg/80">Total</span>
                   <span className="font-serif text-2xl text-brand-bg font-semibold">${(totalPrice / 100).toFixed(2)}</span>
                 </div>
+
+                {hasWine && (
+                  <div className="mb-5 flex items-start gap-3 bg-brand-bg/5 p-3 rounded-sm border border-brand-bg/10">
+                    <input 
+                      type="checkbox" 
+                      id="sidebar-age-gate" 
+                      checked={isAdultConfirmed}
+                      onChange={(e) => setIsAdultConfirmed(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-brand-bg bg-white border-brand-bg/20 rounded-sm cursor-pointer flex-shrink-0"
+                    />
+                    <label htmlFor="sidebar-age-gate" className="text-[10px] font-semibold tracking-wide text-brand-bg/80 leading-relaxed cursor-pointer select-none">
+                      I confirm that I am 18 years of age or older (ID required on delivery).
+                    </label>
+                  </div>
+                )}
+
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={handleCheckout}
                   disabled={isCheckingOut}
-                  className="w-full py-4 tracking-[0.2em] text-xs font-bold uppercase transition-colors rounded-sm shadow-md bg-brand-surface text-brand-foreground hover:bg-brand-accent/80 disabled:opacity-70 flex justify-center items-center gap-3"
+                  className="w-full py-4 tracking-[0.2em] text-xs font-bold uppercase transition-colors rounded-sm shadow-md bg-brand-surface text-brand-foreground hover:bg-brand-accent/80 disabled:opacity-70 disabled:cursor-not-allowed flex justify-center items-center gap-3"
                 >
                   {isCheckingOut ? <><Loader2 className="w-4 h-4 animate-spin" /> Processing...</> : "Checkout"}
                 </motion.button>

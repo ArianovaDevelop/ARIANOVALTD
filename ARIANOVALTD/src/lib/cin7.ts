@@ -133,6 +133,11 @@ const getHeaders = () => {
  * Returns the matched sale order if found, so we can extract the SaleID for payments.
  */
 export async function checkSalesOrderExists(stripeSessionId: string): Promise<Cin7SaleListItem | null> {
+  // Defensive validation: if input is missing or invalid, return null immediately instead of throwing
+  if (!stripeSessionId || typeof stripeSessionId !== 'string') {
+    return null;
+  }
+
   try {
     const params = new URLSearchParams({
       Search: stripeSessionId,
@@ -150,9 +155,12 @@ export async function checkSalesOrderExists(stripeSessionId: string): Promise<Ci
 
     const data: Cin7SaleListResponse = await response.json();
     
-    // Exact match check: Cin7 Search is a "contains" search, so we verify the specific field.
+    // Exact match check: Cin7 Search is a "contains" search, so we verify specific fields.
+    // Matches ExternalID (Stripe Session ID), CustomerReference (OrderNumber), or OrderNumber.
     const match = data.SaleList.find(item => 
-      item.CustomerReference === stripeSessionId || item.OrderNumber === stripeSessionId
+      item.ExternalID === stripeSessionId ||
+      item.CustomerReference === stripeSessionId || 
+      item.OrderNumber === stripeSessionId
     );
     
     return match || null;

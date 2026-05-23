@@ -3,6 +3,18 @@
     {
       "path": "/api/cron/cin7-retry",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/sync-delivery",
+      "schedule": "0 0 * * *",
+      "//_note": "Hobby limit is 1x per day. For Vercel Pro Go-Live, replace schedule with the line below:",
+      "//_optimalSchedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/sync-inventory",
+      "schedule": "0 4 * * *",
+      "//_note": "Hobby tier daily schedule. For Vercel Pro Go-Live, replace schedule with the hourly check below:",
+      "//_optimalSchedule": "0 * * * *"
     }
   ]
 }

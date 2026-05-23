@@ -19,17 +19,16 @@ export default async function DossierPage() {
   const customerId = `customer-${userId}`
   const user = await currentUser();
 
-  // Retrieve exact Order Integer parameters and current customer structures completely
-  const [customer, orderCount] = await Promise.all([
-    sanityFetch<any>({
-      query: groq`*[_type == "customer" && _id == $customerId][0]`,
-      params: { customerId }
-    }),
-    sanityFetch<number>({
-      query: groq`count(*[_type == "order" && customer._ref == $customerId])`,
-      params: { customerId }
-    })
-  ]);
+  // Retrieve the Sanity customer profile data
+  const customer = await sanityFetch<any>({
+    query: groq`*[_type == "customer" && _id == $customerId][0]`,
+    params: { customerId }
+  });
+
+  // Pull VIP status strictly from Clerk publicMetadata (Backend single source of truth)
+  // Fall back to Sanity if Clerk hasn't synced yet, or Bronze/0 as ultimate fallback
+  const tier = (user?.publicMetadata?.tier as string) || customer?.tier || 'Bronze';
+  const acquisitions = (user?.publicMetadata?.acquisitions as number) || customer?.acquisitions || 0;
 
   return (
     <div className="flex flex-col gap-12">
@@ -42,7 +41,8 @@ export default async function DossierPage() {
         <MembershipCard 
           fullName={user?.fullName || customer?.fullName || "Arianova Member"}
           joinDate={user?.createdAt ? new Date(user.createdAt).toISOString() : new Date().toISOString()}
-          orderCount={orderCount || 0}
+          tier={tier}
+          acquisitions={acquisitions}
         />
       </div>
 

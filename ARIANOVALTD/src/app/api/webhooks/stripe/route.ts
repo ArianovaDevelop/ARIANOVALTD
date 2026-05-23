@@ -1,10 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import Stripe from 'stripe'
 import { client } from '@/sanity/lib/client'
 import { writeClient } from '@/sanity/lib/write-client'
 import { createSalesOrder, createSalesPayment, createSalesInvoice, authoriseSalesOrder, Cin7SalePayload, Cin7PaymentPayload } from '@/lib/cin7'
 import { Logger } from '@/lib/logger'
 import { getAppUrl } from '@/lib/urls'
+import { clerkClient } from '@clerk/nextjs/server'
+import { calculateTier } from '@/config/membership'
 
 const getStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: '2023-10-16' as any,
@@ -39,26 +41,53 @@ export async function POST(req: Request) {
     try {
       const idempotencyId = `processed-session-${sessionId}`
       
-      // 1. IDEMPOTENCY CHECK (Safety Net Layer 1): 
-      // We create a unique ID for this transaction so Sanity guarantees we only process this event ONCE. 
-      // We check here first to skip heavy processing if it's already done (e.g. from retries).
+      // ============================================================================
+      // SAFETY NET LAYER 1: IDEMPOTENCY CHECK
+      // ============================================================================
+      // Stripe webhooks can fire multiple times for the exact same event. 
+      // We create a unique `sessionRecord` document in Sanity for each session.
+      // If the document already exists, we INSTANTLY skip processing. This guarantees
+      // we never double-charge inventory or create duplicate ERP sales.
       const existing = await client.fetch(`*[_id == $id][0]`, { id: idempotencyId })
       if (existing) {
         console.log(`⏭️ [Webhook] Skipping session ${sessionId} - Already processed.`)
         return NextResponse.json({ received: true, skipped: true })
       }
 
-      // 2. METADATA SHORTCUT (Safety Net Layer 2):
-      // Instead of querying Sanity for the full cart, we stringified the cart during Checkout.
-      // This eliminates failure points and ensures we are mapping exactly what they checked out with.
-      const serializedCart = session.metadata?.serializedCart
+      // ============================================================================
+      // SAFETY NET LAYER 2: THE METADATA SHORTCUT
+      // ============================================================================
+      // Standard architectures query the database here to figure out what was in the cart.
+      // That's a massive failure point (e.g. what if Sanity is down?). 
+      // Instead, during checkout, we injected the ENTIRE verified cart payload directly
+      // into Stripe's metadata. We just parse it out here. Zero external dependencies.
+      let serializedCart = '';
+      if (session.metadata) {
+        for (let i = 0; i < 50; i++) {
+          const chunk = session.metadata[`cart_chunk_${i}`];
+          if (chunk) {
+            serializedCart += chunk;
+          } else {
+            break;
+          }
+        }
+      }
+      // Fallback for older active sessions
+      if (!serializedCart && session.metadata?.serializedCart) {
+        serializedCart = session.metadata.serializedCart;
+      }
+
       if (!serializedCart) {
         throw new Error(`Missing serializedCart in metadata for session ${sessionId}`)
       }
       const cart = JSON.parse(serializedCart)
 
-      // 3. ATOMIC TRANSACTION INITIALIZATION
-      // All mutations below will occur at the EXACT same time. If one fails, they all fail.
+      // ============================================================================
+      // THE MASTER ATOMIC TRANSACTION
+      // ============================================================================
+      // Every single Sanity database mutation (Idempotency Record, Inventory Update,
+      // Order Creation) is bundled into ONE transaction. It either 100% succeeds or 
+      // 100% fails. No partial data corruption is possible.
       const tx = writeClient.transaction().create({
         _id: idempotencyId,
         _type: 'sessionRecord',
@@ -70,11 +99,33 @@ export async function POST(req: Request) {
       const clerkUserId = session.metadata?.clerkUserId
       const customerPrefix = (clerkUserId && clerkUserId !== 'guest') ? `customer-${clerkUserId}` : undefined
       
-      const sanityOrderItems = []
-      const emailItems = []
+      let newAcquisitions = 1;
+      let newTier = 'Bronze';
+
+      if (customerPrefix) {
+        // Source of Truth: Calculate dynamic dossier metrics securely on the backend
+        const existingCustomer = await client.fetch(`*[_type == "customer" && _id == $id][0]`, { id: customerPrefix });
+        newAcquisitions = (existingCustomer?.acquisitions || 0) + 1;
+        newTier = calculateTier(newAcquisitions);
+        
+        tx.patch(customerPrefix, p => p.set({
+          acquisitions: newAcquisitions,
+          tier: newTier
+        }));
+      }
+
+      const sanityOrderItems: any[] = []
+      const emailItems: { title: string; quantity: number; price: number }[] = []
 
       for (const item of cart) {
-        // 4. INVENTORY DEDUCTION & SALES TRACKING (Safety Net Layer 3)
+        // ============================================================================
+        // SAFETY NET LAYER 3: INVENTORY DEDUCTION (Ghost Lock Resolution)
+        // ============================================================================
+        // Remember how we incremented `committed_stock` in the checkout route?
+        // Now that they actually paid, we:
+        // 1. Decrement `committed_stock` (Release the Ghost Lock).
+        // 2. Increment `sold_count` (Track historical sales).
+        // The Cin7 Stock Webhook manages `physical_stock`, so we don't touch it here!
         if (!item.id) {
           Logger.error(`[Webhook] Skipping item with missing ID in cart`, { item });
           continue;
@@ -115,7 +166,7 @@ export async function POST(req: Request) {
         })
       }
 
-      const orderNumber = sessionId.slice(-8).toUpperCase();
+      const orderNumber = session.metadata?.orderNumber || sessionId.slice(-8).toUpperCase();
       tx.create({
         _type: 'order',
         orderNumber: orderNumber,
@@ -129,8 +180,33 @@ export async function POST(req: Request) {
       await tx.commit()
       Logger.info(`🎉 [Success] Stripe checkout mapped natively to Inventory Logic!`, { sessionId })
       
-      // --- 5. CIN7 / UNLEASHED INTEGRATION ---
-      let integrationLogId = '';
+      // ============================================================================
+      // VIP BADGE METADATA SYNC (CLERK)
+      // ============================================================================
+      if (clerkUserId && clerkUserId !== 'guest') {
+        try {
+          const clerk = await clerkClient();
+          await clerk.users.updateUserMetadata(clerkUserId, {
+            publicMetadata: {
+              tier: newTier,
+              acquisitions: newAcquisitions
+            }
+          });
+          Logger.info(`🏅 [Clerk] VIP Badge synced for user ${clerkUserId}: ${newTier} Collector (${newAcquisitions} Vintages)`);
+        } catch (clerkErr: any) {
+          Logger.error(`❌ [Clerk] Failed to sync VIP Badge metadata`, clerkErr);
+        }
+      }
+
+      // ============================================================================
+      // ASYNCHRONOUS BACKGROUND SYNC (CIN7, SLACK, EMAIL)
+      // ============================================================================
+      // To prevent Stripe 500 timeout errors (context deadline exceeded), we push
+      // the heavy multi-step ERP and notification logic to the background.
+      // Sanity is perfectly updated. Now we must push the financial data to the ERP.
+      
+      const processBackgroundSync = async () => {
+        let integrationLogId = '';
       try {
         const shippingCost = (session.shipping_cost?.amount_total || 0) / 100;
         const additionalCharges = [];
@@ -153,6 +229,7 @@ export async function POST(req: Request) {
             Postcode: session.customer_details?.address?.postal_code || '0000',
           },
           CustomerReference: orderNumber, // The beautiful, human-readable 8-char ID for Sanity & Xero correlation
+          ExternalID: sessionId,          // Map Stripe Session ID to ExternalID for pre-flight idempotency
           Location: process.env.CIN7_DEFAULT_LOCATION || 'Main Warehouse',
           SaleType: 'Simple',
           Order: {
@@ -172,7 +249,13 @@ export async function POST(req: Request) {
           }
         };
 
-        // 1. Create Pending Log BEFORE API call (protects against Vercel SIGKILL timeouts)
+        // ============================================================================
+        // THE STATE MACHINE: PENDING LOG CREATION
+        // ============================================================================
+        // We write the EXACT payload we intend to send to Cin7 into a Sanity `integrationLog`
+        // BEFORE we even call the Cin7 API. Why? Because serverless functions (like Vercel)
+        // can time out after 10 seconds. If Vercel kills this function mid-flight, 
+        // our Janitor Cron Job will find this "pending" log and resume exactly where it left off.
         integrationLogId = await Logger.createTransactionLog({
           orderNumber,
           service: 'cin7',
@@ -183,7 +266,9 @@ export async function POST(req: Request) {
           amountTotal: (session.amount_total || 0) / 100,
         });
 
-        // 2. Execute Step 1: Create Sale
+        // ============================================================================
+        // CIN7 STATE 1: CREATE THE SALE
+        // ============================================================================
         const saleResponse = await createSalesOrder(cin7Payload);
         const saleId = saleResponse.ID; // Cin7 returns the new Sale ID
         
@@ -191,21 +276,27 @@ export async function POST(req: Request) {
         await Logger.updateTransactionLog(integrationLogId, { syncState: 'SALE_CREATED' });
         Logger.info(`[Step 1] Order created in Cin7 Core!`, { orderNumber, saleId });
 
-        // 4. NEW STEP A: Authorise Order
+        // ============================================================================
+        // CIN7 STATE 2: AUTHORISE THE ORDER
+        // ============================================================================
         if (saleId) {
           await authoriseSalesOrder(saleId, cin7Payload.Order?.Lines);
           await Logger.updateTransactionLog(integrationLogId, { syncState: 'ORDER_AUTHORISED' });
           Logger.info(`[Step 2] Order authorised in Cin7 Core!`, { orderNumber });
         }
 
-        // 4. NEW STEP B: Authorise Invoice (Required for Payment)
+        // ============================================================================
+        // CIN7 STATE 3: AUTHORISE THE INVOICE
+        // ============================================================================
         if (saleId) {
           await createSalesInvoice(saleId, cin7Payload.Order?.Lines);
           await Logger.updateTransactionLog(integrationLogId, { syncState: 'INVOICE_AUTHORISED' });
           Logger.info(`[Step 2] Invoice authorised in Cin7 Core!`, { orderNumber });
         }
 
-        // 5. Execute Step 3: Create Payment
+        // ============================================================================
+        // CIN7 STATE 4: CREATE THE PAYMENT
+        // ============================================================================
         if (saleId) {
           // Resolve the clearing account from env — fall back gracefully with a warning
           const stripeAccount = process.env.CIN7_STRIPE_ACCOUNT_NAME;
@@ -301,6 +392,18 @@ export async function POST(req: Request) {
           });
         }
       }
+    }; // End of processBackgroundSync
+
+    // Execute in background immediately using Next.js 15 native after()
+    after(() => {
+      processBackgroundSync().catch((err) => {
+        console.error('❌ [Background Sync] Uncaught promise failure:', err);
+      });
+    });
+
+    // Immediate Acknowledgement back to Stripe (Sub 500ms response)
+    return NextResponse.json({ received: true }, { status: 200 });
+
     } catch (error: any) {
       // Fix #2: Never leak internal error.message to the HTTP response
       console.error('❌ [Error] Failed to mutate Sanity backend on Completion:', error)
@@ -308,7 +411,11 @@ export async function POST(req: Request) {
     }
   }
 
-  // --- 2. ABANDONED CARTS (Release Soft Lock Only) ---
+  // ============================================================================
+  // ABANDONED CARTS: RELEASING THE GHOST LOCKS
+  // ============================================================================
+  // If the user sat on the Stripe checkout page for 30 minutes and didn't buy,
+  // Stripe fires an `expired` event. We catch it here.
   if (event.type === 'checkout.session.expired') {
     const session = event.data.object as Stripe.Checkout.Session
     const sessionId = session.id
@@ -323,7 +430,21 @@ export async function POST(req: Request) {
       }
 
       // METADATA SHORTCUT
-      const serializedCart = session.metadata?.serializedCart
+      let serializedCart = '';
+      if (session.metadata) {
+        for (let i = 0; i < 50; i++) {
+          const chunk = session.metadata[`cart_chunk_${i}`];
+          if (chunk) {
+            serializedCart += chunk;
+          } else {
+            break;
+          }
+        }
+      }
+      if (!serializedCart && session.metadata?.serializedCart) {
+        serializedCart = session.metadata.serializedCart;
+      }
+
       if (!serializedCart) {
         console.warn(`[Webhook] No serializedCart found for expired session ${sessionId}. Standard cleanup skipped.`);
         return NextResponse.json({ received: true });
@@ -339,7 +460,9 @@ export async function POST(req: Request) {
       })
 
       for (const item of cart) {
-        // Here we ONLY release the committed stock lock, to free it back into the wild for other users.
+        // --- GHOST LOCK RELEASE ---
+        // We ONLY decrement the `committed_stock` we reserved during the checkout route.
+        // This frees the bottles back into the wild for other customers to buy.
         tx.patch(item.id, p => p.dec({ committed_stock: item.qty }))
       }
       

@@ -28,7 +28,12 @@ export async function GET(req: Request) {
     const MAX_RETRIES = 5;
     const timeoutThreshold = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
-    // 2. Fetch failed OR orphaned pending Cin7 logs
+    // ============================================================================
+    // STEP 1: FETCH ORPHANED TIMEOUT LOGS
+    // ============================================================================
+    // If Vercel killed the Stripe Webhook because it took longer than 10 seconds 
+    // to talk to the ERP, a "pending" log was left behind. We grab anything that
+    // has been pending for more than 15 minutes.
     const failedLogs: SanityIntegrationLog[] = await writeClient.fetch(
       `*[_type == "integrationLog" && service == "cin7" && (status == "failed" || (status == "pending" && _createdAt < $timeoutThreshold)) && (retryCount == null || retryCount < $maxRetries)] {
         _id,
@@ -60,10 +65,13 @@ export async function GET(req: Request) {
           throw new Error('Payload is empty. Cannot replay.');
         }
 
-        // We use stripe_session_id as the correlation/idempotency key for ERP.
-        // If Cin7 receives an order with an existing stripe_session_id, it should reject or update it natively.
-        // This prevents double-creation in the ERP if the timeout happened AFTER Cin7 created it, 
-        // but BEFORE our Vercel function got the 200 OK.
+        // ============================================================================
+        // STEP 2: IDEMPOTENT PAYLOAD RECOVERY
+        // ============================================================================
+        // We use `stripe_session_id` as the correlation/idempotency key for the ERP.
+        // If Cin7 receives an order with an existing stripe_session_id, it natively
+        // rejects or updates it. This absolutely prevents double-creation in the ERP 
+        // if the timeout happened AFTER Cin7 created it, but BEFORE Vercel got the 200 OK.
         // Fix #5: Validate the deserialized payload before sending to external API
         const orderPayload: Cin7SalePayload = JSON.parse(log.payload);
         if (!orderPayload.CustomerID || !orderPayload.Order?.Lines?.length) {
@@ -76,11 +84,20 @@ export async function GET(req: Request) {
           Total: line.Total || (line.Price * line.Quantity)
         }));
 
+        // Fallback: populate ExternalID from stripeSessionId if missing (for legacy logs)
+        if (!orderPayload.ExternalID && log.stripeSessionId) {
+          orderPayload.ExternalID = log.stripeSessionId;
+        }
+
         Logger.info(`[Janitor] Retrying Order: ${log.orderNumber} (Attempt ${log.retryCount + 1})`);
 
         let currentSaleId = null;
 
-        // 1. Resolve SaleID (Pre-Flight or Existing State)
+        // ============================================================================
+        // STEP 3: PRE-FLIGHT RESOLUTION (FINDING LOST SALES)
+        // ============================================================================
+        // Before we create a new sale, we explicitly ask Cin7: "Do you already have a sale
+        // matching this Stripe Session ID?" If yes, we grab that SaleID to resume from.
         if (log.stripeSessionId) {
           const existingOrder = await checkSalesOrderExists(log.stripeSessionId);
           if (existingOrder) {
@@ -89,7 +106,11 @@ export async function GET(req: Request) {
           }
         }
 
-        // 2. State Machine: Step 1 - Create Sale
+        // ============================================================================
+        // STEP 4: SEQUENTIAL STATE MACHINE RESUMPTION
+        // ============================================================================
+        // This acts as a ladder. If the order failed at Step 3 (Invoice), the Janitor 
+        // skips Steps 1 and 2, and perfectly resumes exactly where the webhook died.
         if (!currentSaleId && !log.syncState) {
           const saleResponse = await createSalesOrder(orderPayload);
           currentSaleId = saleResponse.ID;
@@ -117,14 +138,17 @@ export async function GET(req: Request) {
 
         // 5. State Machine: Step 4 - Create Payment
         if (log.syncState === 'INVOICE_AUTHORISED') {
+          const stripeAccount = process.env.CIN7_STRIPE_ACCOUNT_NAME;
           const paymentPayload: Cin7PaymentPayload = {
             TaskID: currentSaleId,
+            Reference: log.stripeSessionId ? log.stripeSessionId.substring(0, 50) : undefined,
             Amount: log.amountTotal ?? (
               (orderPayload.Order?.Lines.reduce((sum, line) => sum + (line.Price * line.Quantity), 0) || 0) +
               (orderPayload.Order?.AdditionalCharges?.reduce((sum, charge) => sum + (charge.Price * charge.Quantity), 0) || 0)
             ),
+            // We use the current date as a fallback, but the ideal fix is to store the actual Stripe payment date in Sanity log payload.
             DatePaid: new Date().toISOString().split('.')[0],
-            Account: '1199',
+            Account: stripeAccount ?? '1201',
             CurrencyRate: 1
           };
           await createSalesPayment(paymentPayload);

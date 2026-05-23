@@ -43,6 +43,33 @@ describe('Cin7 API Client Logic', () => {
       expect(exists?.OrderNumber).toBe('sess_123');
     });
 
+    it('returns true if stripeSessionId matches ExternalID', async () => {
+      (fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          Total: 1,
+          SaleList: [
+            { CustomerReference: 'other', ExternalID: 'sess_123', OrderNumber: 'SO-001' }
+          ]
+        })
+      });
+
+      const exists = await checkSalesOrderExists('sess_123');
+      expect(exists).not.toBeNull();
+      expect(exists?.ExternalID).toBe('sess_123');
+    });
+
+    it('returns null immediately if stripeSessionId is null/undefined/empty', async () => {
+      const existsNull = await checkSalesOrderExists(null as any);
+      const existsUndefined = await checkSalesOrderExists(undefined as any);
+      const existsEmpty = await checkSalesOrderExists('');
+
+      expect(existsNull).toBeNull();
+      expect(existsUndefined).toBeNull();
+      expect(existsEmpty).toBeNull();
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
     it('returns false if no exact match is found in the list', async () => {
       (fetch as any).mockResolvedValueOnce({
         ok: true,

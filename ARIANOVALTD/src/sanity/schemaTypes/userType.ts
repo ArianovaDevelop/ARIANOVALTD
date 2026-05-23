@@ -1,4 +1,5 @@
 import { defineField, defineType } from 'sanity'
+import { MEMBERSHIP_TIERS } from '@/config/membership'
 
 export const userType = defineType({
   name: 'customer',
@@ -53,6 +54,23 @@ export const userType = defineType({
       }
     }),
     defineField({ name: 'newsletterOptIn', title: 'Newsletter Opt-In', type: 'boolean', initialValue: false }),
+    defineField({
+      name: 'acquisitions',
+      title: 'Acquisitions',
+      type: 'number',
+      initialValue: 0,
+      readOnly: true
+    }),
+    defineField({
+      name: 'tier',
+      title: 'Status Tier',
+      type: 'string',
+      options: {
+        list: Object.values(MEMBERSHIP_TIERS)
+      },
+      initialValue: MEMBERSHIP_TIERS.BRONZE,
+      readOnly: true
+    }),
   ],
   preview: {
     select: {

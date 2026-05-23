@@ -46,7 +46,7 @@ export const wineType = defineType({
       type: 'number', 
       initialValue: 0,
       readOnly: true,
-      description: 'READ ONLY: Managed automatically by Cin7 Core Webhooks.'
+      description: 'READ ONLY: Managed automatically by the pull-based Cin7 Inventory Sync Cron Job.'
     }),
     defineField({ 
       name: 'committed_stock', 

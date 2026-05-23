@@ -3,21 +3,18 @@ import { Award } from "lucide-react"
 interface MembershipCardProps {
   fullName: string;
   joinDate: string;
-  orderCount: number;
+  tier: string;
+  acquisitions: number;
 }
 
-export default function MembershipCard({ fullName, joinDate, orderCount }: MembershipCardProps) {
-  let tier = "Bronze"
+export default function MembershipCard({ fullName, joinDate, tier, acquisitions }: MembershipCardProps) {
   let gradient = "from-[#b87333] to-[#8a5626]" // Copper / Bronze Base
-  
-  // Calculate dynamic threshold tiers seamlessly tracking Sanity payloads natively
-  if (orderCount >= 6) {
-    tier = "Gold"
+
+  if (tier === "Gold") {
     gradient = "from-brand-surface to-[#2A2A2A] border-brand-accent/50 shadow-[0_0_30px_rgba(212,175,55,0.1)]"
-  } else if (orderCount >= 3) {
-    tier = "Silver"
+  } else if (tier === "Silver") {
     gradient = "from-brand-surface to-[#222] border-brand-foreground/30 shadow-2xl"
-  } else {
+  } else if (tier === "Bronze") {
     gradient = "from-brand-surface to-[#151515] border-brand-border/50 shadow-xl"
   }
 
@@ -25,7 +22,7 @@ export default function MembershipCard({ fullName, joinDate, orderCount }: Membe
     <div className={`relative overflow-hidden rounded-sm p-8 text-brand-foreground border bg-gradient-to-br ${gradient}`}>
       {/* Decorative Shimmer Layout Block */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/5 rounded-full blur-2xl transform translate-x-10 -translate-y-10" />
-      
+
       <div className="relative z-10 flex flex-col h-full justify-between">
         <div className="flex justify-between items-start mb-12">
           <div>
@@ -44,7 +41,7 @@ export default function MembershipCard({ fullName, joinDate, orderCount }: Membe
           </div>
           <div className="text-right">
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-70 mb-1">Acquisitions</p>
-            <p className="font-sans font-medium text-lg">{orderCount} Vintages</p>
+            <p className="font-sans font-medium text-lg">{acquisitions} Orders</p>
           </div>
         </div>
       </div>

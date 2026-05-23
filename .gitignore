@@ -1,3 +1,10 @@
 Docs/
 production-backup.tar.gz
 ARIANOVALTD/ext-swagger/dearinventory.apib
+ARIANOVALTD/.agents/AGENTS.md
+ARIANOVALTD/.agents/ARCHITECTURE.md
+ARIANOVALTD/.agents/skills/payments_expert.md
+ARIANOVALTD/.agents/skills/qa_engineer.md
+ARIANOVALTD/.agents/skills/sanity_architect.md
+ARIANOVALTD/.agents/skills/security_auditor.md
+ARIANOVALTD/.agents/skills/ui_engineer.md
